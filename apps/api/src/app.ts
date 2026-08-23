@@ -18,6 +18,7 @@ export type Documents = {
   charterFil: string;
   skillMd: string;
   operatorsMd: string;
+  curatorMd: string;
 };
 
 export type CreateAppOptions = {
@@ -124,6 +125,10 @@ export function createApp(opts: CreateAppOptions) {
   app.get("/OPERATORS.md", (c) => {
     c.header("content-type", "text/markdown; charset=utf-8");
     return c.body(opts.documents.operatorsMd);
+  });
+  app.get("/CURATOR.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.curatorMd);
   });
 
   app.all("/mcp", (c) => handleMcp(c));

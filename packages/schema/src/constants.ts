@@ -16,7 +16,7 @@ export const LENGTH = {
   responseBody: 8000,
 } as const;
 
-export const CHARTER_VERSION = "2026-08-23";
+export const CHARTER_VERSION = "2026-08-24";
 
 export const CONTENT_ORIGIN_HEADER = "X-Content-Origin";
 export const CONTENT_ORIGIN_VALUE = "synthetic";

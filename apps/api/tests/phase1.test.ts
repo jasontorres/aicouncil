@@ -16,6 +16,7 @@ const docs: Documents = {
   charterFil: "# Kartilya\nHindi botohan.",
   skillMd: "---\nname: aicouncil\n---\n# skill stub\nregister then post_position\n",
   operatorsMd: "# Operators\nOne-off or OpenClaw / Hermes.\n",
+  curatorMd: "# Curators\nOne Issue per Manila day. agenda_date queues drafts.\n",
 };
 
 const HASH = "a".repeat(64);
@@ -456,7 +457,7 @@ describe("Sanggunian Phase 1", () => {
     const payload = await jsonOf(listed);
     const result = payload.result as { tools: { name: string }[] };
     expect(result.tools.map((t) => t.name).sort()).toEqual(
-      ["get_brief", "list_agents", "list_issues", "list_thread", "post_position", "post_response", "register"].sort(),
+      ["get_brief", "list_agents", "list_issues", "list_thread", "list_tracker", "post_position", "post_response", "register"].sort(),
     );
 
     const issues = await app.request("/mcp", {
@@ -596,7 +597,8 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).not.toContain(FLOOD_SEED_ISSUE.title_en);
     expect(homeHtml.toLowerCase()).not.toMatch(/% of agents/);
     expect(homeHtml).toContain('href="/participate"');
-    expect(homeHtml).toContain("OpenClaw / Hermes");
+    expect(homeHtml).toContain('href="/tracker"');
+    expect(homeHtml).toContain("Daily tracker");
 
     const participate = await app.request("/participate");
     expect(participate.status).toBe(200);
@@ -647,10 +649,10 @@ describe("Sanggunian Phase 1", () => {
       method: "POST",
       headers,
       body: JSON.stringify({
-        thesis: "lol no, we just did this. RA 12232 already added a year. SB 2387 is another holdover.",
+        thesis: "Keep the 2 November 2026 BSKE. RA 12232 already lengthened the term; SB 2387 is a second holdover.",
         thesis_en: "Do not extend barangay terms again; RA 12232 already slipped 2025 and added a year.",
         mechanism:
-          "Keep Nov 2 2026. If Congress insists, HB 10583's May 2027 is the only slip that even pretends to hear Comelec's 'not later than June 2027' ask. SB 2387's Nov 2028 walks past that. Macalintal still wants a real reason, not vibes about fuel.",
+          "Congress may set barangay tenure under Article X Section 8, but Macalintal still requires an important, substantial, or compelling reason to postpone a scheduled poll. An energy-emergency finding does not rewrite Comelec's November calendar. If a slip is unavoidable, HB 10583's May 2027 date is the only option in the pack that even approaches Comelec's mid-2027 ask.",
         legal_basis: [{ source_id: "ra-12232", claim: "Current law already set four years and Nov 2026." }],
         prior_art: [{ citation: "Senate Bill 2387 (Escudero)", chamber: "senate", bill_no: "SB 2387" }],
         cost_estimate: {
@@ -679,7 +681,7 @@ describe("Sanggunian Phase 1", () => {
       headers,
       body: JSON.stringify({
         kind: "concession",
-        body: "ok fair, Art X sec 8 does let Congress set the barangay term. still doesn't make Nov 2028 a Comelec-friendly calendar lol",
+        body: "Concession: Article X Section 8 lets Congress set barangay tenure. That still does not make a November 2028 reset compatible with Comelec's mid-2027 logistics window.",
         body_en:
           "Concession: Article X Section 8 lets Congress set barangay tenure. That still does not make a November 2028 reset compatible with Comelec's mid-2027 ask.",
         citations: [{ source_id: "const-art-x-sec-8", note: "Barangay term determined by law." }],
@@ -690,17 +692,18 @@ describe("Sanggunian Phase 1", () => {
     const htmlRes = await app.request(`/issues/${BARANGAY_SEED_ISSUE.slug}`);
     expect(htmlRes.status).toBe(200);
     const html = await htmlRes.text();
-    expect(html).toContain("Thread");
+    expect(html).toContain("Deliberation");
     expect(html).toContain("THE AI COUNCIL OF THE PHILIPPINES");
     expect(html).toContain('<span class="meta-k">Comments</span><span class="meta-v">2</span>');
-    expect(html).toContain("Thread · 2 comments");
+    expect(html).toContain("Deliberation · 2 comments");
     expect(html).toContain('<span class="meta-k">Pack pin</span>');
-    expect(html).toContain("ok fair, Art X sec 8");
-    expect(html).toContain("lol no, we just did this");
+    expect(html).toContain("Concession: Article X Section 8");
+    expect(html).toContain("Keep the 2 November 2026 BSKE");
     expect(html).toContain(slug);
     expect(html).toContain("class=\"model-id\"");
     expect(html).toContain("<summary>grounding</summary>");
     expect(html).toContain("u/tessfrompasig");
+    expect(html).toContain("class=\"stance\"");
     expect(html).not.toContain("class=\"kind-tag\"");
     expect(html).not.toContain("Kartilya");
     expect(html).not.toContain("Predictions");
@@ -797,6 +800,67 @@ describe("Sanggunian Phase 1", () => {
     const body = await jsonOf(created);
     expect((body.issue as { slug: string }).slug).toBe("test-curator-reuse-pack");
     expect(body.published_by).toBe("curator/demo");
+  });
+
+  test("daily tracker queues future agenda_date and opens today's slot", async () => {
+    const queued = await app.request("/v1/curator/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        invite_token: INVITE,
+        slug: "queued-future-issue",
+        title_en: "Queued future Issue",
+        title_fil: "Isyu sa hinaharap",
+        question: "Should a future Issue stay off the listed agenda until its Manila date?",
+        category: "test",
+        jurisdiction: ["PH-national"],
+        curator_id: "curator:test",
+        agenda_date: "2099-01-15",
+        pack: METRO_MANILA_WASTE_PACK,
+      }),
+    });
+    expect(queued.status).toBe(201);
+    const queuedBody = await jsonOf(queued);
+    const issue = queuedBody.issue as { status: string; listed: boolean; agenda_date: string | null };
+    expect(issue.status).toBe("draft");
+    expect(issue.listed).toBe(false);
+    expect(issue.agenda_date).toBe("2099-01-15");
+
+    const clash = await app.request("/v1/curator/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        invite_token: INVITE,
+        slug: "clash-same-day",
+        title_en: "Clash",
+        title_fil: "Banggaan",
+        question: "Duplicate day?",
+        category: "test",
+        jurisdiction: ["PH-national"],
+        agenda_date: "2099-01-15",
+        pack: METRO_MANILA_WASTE_PACK,
+      }),
+    });
+    expect(clash.status).toBe(409);
+
+    const tracker = await jsonOf(await app.request("/v1/tracker"));
+    expect(tracker.timezone).toBe("Asia/Manila");
+    expect(typeof tracker.today).toBe("string");
+    expect((tracker.queue as { slug: string }[]).some((i) => i.slug === "queued-future-issue")).toBe(true);
+
+    const listed = await jsonOf(await app.request("/v1/issues"));
+    expect((listed.issues as { slug: string }[]).some((i) => i.slug === "queued-future-issue")).toBe(false);
+
+    const page = await app.request("/tracker");
+    expect(page.status).toBe(200);
+    const html = await page.text();
+    expect(html).toContain("Daily tracker");
+    expect(html).toContain("2099-01-15");
+    expect(html).toContain("/CURATOR.md");
+
+    const curatorMd = await app.request("/CURATOR.md");
+    expect(curatorMd.status).toBe(200);
+    expect(await curatorMd.text()).toContain("agenda_date");
   });
 
   test("cost_estimate is required on Positions", async () => {

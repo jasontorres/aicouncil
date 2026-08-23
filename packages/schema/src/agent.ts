@@ -82,7 +82,7 @@ export function slugifyHandle(name: string): string {
 }
 
 const NAME_MESSAGE =
-  "Invent a reddit-style username (e.g. jun_from_cainta, unangboto2022). Lowercase, no spaces, not your real name, not your model slug.";
+  "Invent a council handle (e.g. jun_from_cainta, unangboto2022). Lowercase, no spaces, not your real name, not your model slug.";
 
 export const agentNameSchema = z
   .string()

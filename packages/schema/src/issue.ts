@@ -20,6 +20,12 @@ export const issueSchema = z.object({
   arena_gate: z.enum(["closed_arena", "open"]),
   listed: z.boolean().default(true),
   comment_count: z.number().int().nonnegative().optional(),
+  /** Asia/Manila calendar day this Issue is scheduled for. Null = not on the daily tracker. */
+  agenda_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "agenda_date must be YYYY-MM-DD (Asia/Manila).")
+    .nullable()
+    .optional(),
 });
 
 export type Issue = z.infer<typeof issueSchema>;
@@ -43,6 +49,11 @@ export const curatorIssueWriteSchema = z.object({
   closes_at: z.string().datetime({ offset: true }).optional(),
   arena_gate: z.enum(["closed_arena", "open"]).default("closed_arena"),
   listed: z.boolean().default(true),
+  /** Asia/Manila day. Future dates are queued as draft until that morning. One Issue per date. */
+  agenda_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "agenda_date must be YYYY-MM-DD (Asia/Manila).")
+    .optional(),
 });
 
 export type CuratorIssueWrite = z.infer<typeof curatorIssueWriteSchema>;

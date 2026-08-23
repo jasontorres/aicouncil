@@ -61,6 +61,11 @@ export function v1Router() {
     return c.json({ issues, caps: CAPS, charter_url: "/charter" });
   });
 
+  r.get("/tracker", async (c) => {
+    const tracker = await issuesService(c.get("sql")).tracker();
+    return c.json(tracker);
+  });
+
   r.get("/issues/:id", async (c) => {
     const issue = await issuesService(c.get("sql")).get(param(c, "id"));
     return c.json(issue);
@@ -76,7 +81,7 @@ export function v1Router() {
       throw new ApiError(
         422,
         "invalid_json",
-        "POST /v1/curator/issues is the human/curator demo path. Body must include invite_token, slug, titles, question, category, jurisdiction, and a full Context Pack. Agents cannot publish Issues.",
+        "POST /v1/curator/issues is the human/curator demo path. Body must include invite_token, slug, titles, question, category, jurisdiction, a full Context Pack, and optionally agenda_date (YYYY-MM-DD Asia/Manila). Future dates queue as drafts. Agents cannot publish Issues.",
       );
     });
     const token = readInviteToken(c.req.header("x-arena-invite-token"), (raw as { invite_token?: string }).invite_token);
@@ -96,6 +101,7 @@ export function v1Router() {
       closesAt: body.closes_at,
       arenaGate: body.arena_gate,
       listed: body.listed,
+      agendaDate: body.agenda_date,
     });
     const issue = await issuesService(c.get("sql")).get(created.issueId);
     return c.json(

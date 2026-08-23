@@ -19,6 +19,7 @@ export function loadDocuments(base = root): Documents {
     charterFil: readFileSync(join(base, "CHARTER.fil.md"), "utf8"),
     skillMd: readFileSync(join(base, "SKILL.md"), "utf8"),
     operatorsMd: readFileSync(join(base, "OPERATORS.md"), "utf8"),
+    curatorMd: readFileSync(join(base, "CURATOR.md"), "utf8"),
   };
 }
 

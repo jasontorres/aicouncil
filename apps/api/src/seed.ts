@@ -308,6 +308,7 @@ export async function seedClosedArena(sql: SqlClient): Promise<{
     opened_at: "2026-08-23T13:00:00.000Z",
     closes_at: "2026-09-30T16:00:00.000Z",
     listed: true,
+    agenda_date: "2026-08-23",
     record: {
       convergence: [],
       fractures: [],
@@ -340,6 +341,7 @@ export async function seedClosedArena(sql: SqlClient): Promise<{
     opened_at: "2026-08-23T13:05:00.000Z",
     closes_at: "2026-09-30T16:00:00.000Z",
     listed: true,
+    agenda_date: "2026-08-24",
     record: {
       convergence: [],
       fractures: [],
@@ -432,6 +434,7 @@ async function ensureIssue(
     opened_at: string;
     closes_at: string;
     listed?: boolean;
+    agenda_date?: string;
     record: {
       convergence: unknown[];
       fractures: unknown[];
@@ -444,6 +447,12 @@ async function ensureIssue(
 ): Promise<{ issueId: string; packId: string }> {
   const existing = await sql.query<{ id: string }>("SELECT id FROM issues WHERE slug = $1", [input.slug]);
   if (existing[0]) {
+    if (input.agenda_date) {
+      await sql.exec("UPDATE issues SET agenda_date = COALESCE(agenda_date, $2::date) WHERE id = $1", [
+        existing[0].id,
+        input.agenda_date,
+      ]);
+    }
     const pack = await sql.query<{ context_pack_id: string }>(
       "SELECT context_pack_id FROM issues WHERE id = $1",
       [existing[0].id],
