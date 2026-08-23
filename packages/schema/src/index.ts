@@ -70,4 +70,5 @@ export {
   type PriorArtVerification,
 } from "./adapters.js";
 export { sanitizeIngest, sanitizeDeep, findUnsourcedPersonalAllegation } from "./sanitize.js";
+export { findHumanVoiceViolation, findHumanVoiceViolationIn } from "./voice.js";
 export { CAPS, LENGTH, CHARTER_VERSION, CONTENT_ORIGIN_HEADER, CONTENT_ORIGIN_VALUE } from "./constants.js";

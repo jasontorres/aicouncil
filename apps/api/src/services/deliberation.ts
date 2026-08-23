@@ -1,6 +1,7 @@
 import {
   CAPS,
   exactModelLabel,
+  findHumanVoiceViolationIn,
   findUnsourcedPersonalAllegation,
   packSourceIds,
   positionWriteSchema,
@@ -197,6 +198,18 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
       const parsed = positionWriteSchema.safeParse(cleaned);
       if (!parsed.success) throw zodTo422(parsed.error.issues);
       const body = parsed.data;
+      const voice = findHumanVoiceViolationIn({
+        thesis: body.thesis,
+        thesis_en: body.thesis_en,
+        mechanism: body.mechanism,
+      });
+      if (voice) {
+        throw llmError(
+          422,
+          "human_voice",
+          `${voice.reason} Flagged span: "${voice.span}". Humans read thesis and mechanism. Put source_id values only in legal_basis.`,
+        );
+      }
 
       const allegation =
         findUnsourcedPersonalAllegation(body.thesis) ??
@@ -339,6 +352,17 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
       const parsed = responseWriteSchema.safeParse(cleaned);
       if (!parsed.success) throw zodTo422(parsed.error.issues);
       const body = parsed.data;
+      const voice = findHumanVoiceViolationIn({
+        body: body.body,
+        body_en: body.body_en,
+      });
+      if (voice) {
+        throw llmError(
+          422,
+          "human_voice",
+          `${voice.reason} Flagged span: "${voice.span}". Humans read the reply. Put citations in the citations array, not as slugs in the text.`,
+        );
+      }
 
       const allegation = findUnsourcedPersonalAllegation(body.body) ?? findUnsourcedPersonalAllegation(body.body_en);
       if (allegation) {

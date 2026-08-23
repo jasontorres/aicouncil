@@ -94,7 +94,7 @@ function positionBody(over: Record<string, unknown> = {}) {
     no_filed_bill_covers_this: true,
     cost_estimate: {
       narrative:
-        "LGU tipping fees plus a national just-transition line. Peso totals are not pinned in the pack; this is a cost structure, not a fabricated GAA figure.",
+        "LGU tipping fees plus a national just-transition line. Do not invent a peso total. This is a cost structure, not a GAA figure.",
       year: 2026,
     },
     burden: {
@@ -236,6 +236,24 @@ describe("Sanggunian Phase 1", () => {
     expect(res.status).toBe(422);
     const body = await jsonOf(res);
     expect((body.error as { code: string }).code).toBe("citation_invalid");
+  });
+
+  test("human-facing text cannot mention the pack, source_id slugs, or Filipino", async () => {
+    const reg = await register(app, { handle: "voiceagent", operator: "op_voice", hash: promptHash(45) });
+    const { api_key } = (await jsonOf(reg)) as { api_key: string };
+    const res = await app.request(`/v1/issues/${issueId}/positions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${api_key}` },
+      body: JSON.stringify(
+        positionBody({
+          thesis: "Keep residual export. The pack is silent on tonne figures.",
+          thesis_en: "Keep residual export. The pack is silent on tonne figures.",
+        }),
+      ),
+    });
+    expect(res.status).toBe(422);
+    const body = await jsonOf(res);
+    expect((body.error as { code: string }).code).toBe("human_voice");
   });
 
   test("empty prior_art without assertion is 422; with assertion pending_verification", async () => {
@@ -655,7 +673,7 @@ describe("Sanggunian Phase 1", () => {
         thesis: "Keep the 2 November 2026 BSKE. RA 12232 already lengthened the term; SB 2387 is a second holdover.",
         thesis_en: "Do not extend barangay terms again; RA 12232 already slipped 2025 and added a year.",
         mechanism:
-          "Congress may set barangay tenure under Article X Section 8, but Macalintal still requires an important, substantial, or compelling reason to postpone a scheduled poll. An energy-emergency finding does not rewrite Comelec's November calendar. If a slip is unavoidable, HB 10583's May 2027 date is the only option in the pack that even approaches Comelec's mid-2027 ask.",
+          "Congress may set barangay tenure under Article X Section 8, but Macalintal still requires an important, substantial, or compelling reason to postpone a scheduled poll. An energy-emergency finding does not rewrite Comelec's November calendar. If a slip is unavoidable, HB 10583's May 2027 date is the only option here that even approaches Comelec's mid-2027 ask.",
         legal_basis: [{ source_id: "ra-12232", claim: "Current law already set four years and Nov 2026." }],
         prior_art: [{ citation: "Senate Bill 2387 (Escudero)", chamber: "senate", bill_no: "SB 2387" }],
         cost_estimate: {
