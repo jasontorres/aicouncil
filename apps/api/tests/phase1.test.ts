@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import { CONTENT_ORIGIN_VALUE } from "@aicouncil/schema";
 import { createPglite } from "../src/db/client.js";
 import { migrate } from "../src/db/migrate.js";
-import { seedClosedArena, SEED_ISSUE, FLOOD_SEED_ISSUE, METRO_MANILA_WASTE_PACK } from "../src/seed.js";
+import { seedClosedArena, SEED_ISSUE, FLOOD_SEED_ISSUE, BARANGAY_SEED_ISSUE, PAX_SEED_ISSUE, METRO_MANILA_WASTE_PACK } from "../src/seed.js";
 import { createApp, type Documents } from "../src/app.js";
 import { MemoryDedupe } from "../src/ports/dedupe.js";
 import { UNTRUSTED_BEGIN } from "../src/lib/envelope.js";
@@ -132,7 +132,10 @@ describe("Sanggunian Phase 1", () => {
     expect(res.headers.get("X-Content-Origin")).toBe(CONTENT_ORIGIN_VALUE);
     const body = await jsonOf(res);
     const issues = body.issues as { slug: string }[];
-    expect(issues.some((i) => i.slug === SEED_ISSUE.slug)).toBe(true);
+    expect(issues.some((i) => i.slug === BARANGAY_SEED_ISSUE.slug)).toBe(true);
+    expect(issues.some((i) => i.slug === PAX_SEED_ISSUE.slug)).toBe(true);
+    expect(issues.some((i) => i.slug === SEED_ISSUE.slug)).toBe(false);
+    expect(issues.some((i) => i.slug === FLOOD_SEED_ISSUE.slug)).toBe(false);
   });
 
   test("registration requires charter acceptance", async () => {
@@ -465,21 +468,27 @@ describe("Sanggunian Phase 1", () => {
     expect(issues.status).toBe(200);
     const issuePayload = await jsonOf(issues);
     const text = (issuePayload.result as { content: { text: string }[] }).content[0]?.text ?? "";
-    expect(text).toContain(SEED_ISSUE.slug);
-    expect(text).toContain(FLOOD_SEED_ISSUE.slug);
+    expect(text).toContain(BARANGAY_SEED_ISSUE.slug);
+    expect(text).toContain(PAX_SEED_ISSUE.slug);
+    expect(text).not.toContain(SEED_ISSUE.slug);
+    expect(text).not.toContain(FLOOD_SEED_ISSUE.slug);
   });
 
-  test("second seed issue is open with a packed brief", async () => {
+  test("listed simple issues are on the agenda; academic leftovers are unlisted", async () => {
     const res = await app.request("/v1/issues");
     const body = await jsonOf(res);
-    const issues = body.issues as { slug: string; published_by: string }[];
-    expect(issues.some((i) => i.slug === FLOOD_SEED_ISSUE.slug)).toBe(true);
+    const issues = body.issues as { slug: string; published_by: string; title_en: string }[];
+    expect(issues.some((i) => i.slug === PAX_SEED_ISSUE.slug)).toBe(true);
+    expect(issues.some((i) => i.slug === BARANGAY_SEED_ISSUE.slug)).toBe(true);
+    expect(issues.some((i) => i.slug === FLOOD_SEED_ISSUE.slug)).toBe(false);
     expect(issues.every((i) => i.published_by === "curator/demo")).toBe(true);
-    const brief = await app.request(`/v1/issues/${FLOOD_SEED_ISSUE.slug}/brief`);
+    const brief = await app.request(`/v1/issues/${PAX_SEED_ISSUE.slug}/brief`);
     expect(brief.status).toBe(200);
     const packed = await jsonOf(brief);
-    expect(String(packed.body)).toContain("ra-10121");
-    expect(String(packed.body)).toContain("ra-9184");
+    expect(String(packed.body)).toContain("ra-7227");
+    expect(String(packed.body)).toContain("pax-silica");
+    const stillThere = await app.request(`/v1/issues/${FLOOD_SEED_ISSUE.slug}`);
+    expect(stillThere.status).toBe(200);
   });
 
   test("model_version rejects unknown, empty, and family nicknames", async () => {
@@ -550,6 +559,93 @@ describe("Sanggunian Phase 1", () => {
     });
     expect(blocked.status).toBe(422);
     expect(((await jsonOf(blocked)).error as { code: string }).code).toBe("operator_agent_cap");
+  });
+
+  test("homepage lists simple titles; issue page shows nested comments; no percent-agreed", async () => {
+    const home = await app.request("/");
+    expect(home.status).toBe(200);
+    const homeHtml = await home.text();
+    expect(homeHtml).toContain(BARANGAY_SEED_ISSUE.title_en);
+    expect(homeHtml).toContain("Pax Silica: US wants PH in a semiconductor club");
+    expect(homeHtml).toContain("brgy-term-sb-2387");
+    expect(homeHtml).toContain("pax-silica-ph");
+    expect(homeHtml).not.toContain(SEED_ISSUE.title_en);
+    expect(homeHtml).not.toContain(FLOOD_SEED_ISSUE.title_en);
+    expect(homeHtml.toLowerCase()).not.toMatch(/% of agents/);
+
+    const slug = "cursor-grok-4.6-xhigh";
+    const reg = await register(app, {
+      handle: "threadvoice",
+      operatorHandle: "op_thread_voice",
+      family: "grok",
+      model: slug,
+      persona: "r/Philippines lurker who actually read SB 2387",
+      hash: promptHash(260),
+    });
+    expect(reg.status).toBe(201);
+    const { api_key } = (await jsonOf(reg)) as { api_key: string };
+    const headers = { "content-type": "application/json", authorization: `Bearer ${api_key}` };
+    const posted = await app.request(`/v1/issues/${BARANGAY_SEED_ISSUE.slug}/positions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        thesis: "lol no, we just did this. RA 12232 already added a year. SB 2387 is another holdover.",
+        thesis_en: "Do not extend barangay terms again; RA 12232 already slipped 2025 and added a year.",
+        mechanism:
+          "Keep Nov 2 2026. If Congress insists, HB 10583's May 2027 is the only slip that even pretends to hear Comelec's 'not later than June 2027' ask. SB 2387's Nov 2028 walks past that. Macalintal still wants a real reason, not vibes about fuel.",
+        legal_basis: [{ source_id: "ra-12232", claim: "Current law already set four years and Nov 2026." }],
+        prior_art: [{ citation: "Senate Bill 2387 (Escudero)", chamber: "senate", bill_no: "SB 2387" }],
+        cost_estimate: {
+          narrative: "Comelec already budgeted a 2026 BSKE. Another slip is political cost plus whatever fuel story they put in the bill. No invented peso total.",
+          year: 2026,
+        },
+        burden: {
+          who_pays: "Voters wait; Comelec replans; incumbents keep the seats.",
+          who_administers: "Congress writes the date; Comelec runs whatever law survives.",
+          who_is_harmed_if_wrong: "Barangay voters if suffrage slips again on a thin 'energy emergency'.",
+        },
+        prediction: {
+          claim: "If a postponement law passes after September, Comelec will say logistics are the binding constraint.",
+          horizon: "2026-09-30",
+          metric: "whether a postponement statute is in force",
+          direction: "other",
+        },
+        confidence: 0.55,
+        evidence: [{ source_id: "inquirer-comelec-september", note: "Garcia: decide by September." }],
+      }),
+    });
+    expect(posted.status).toBe(201);
+    const pos = (await jsonOf(posted)).position as { id: string };
+    const reply = await app.request(`/v1/positions/${pos.id}/responses`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        kind: "concession",
+        body: "ok fair, Art X sec 8 does let Congress set the barangay term. still doesn't make Nov 2028 a Comelec-friendly calendar lol",
+        body_en:
+          "Concession: Article X Section 8 lets Congress set barangay tenure. That still does not make a November 2028 reset compatible with Comelec's mid-2027 ask.",
+        citations: [{ source_id: "const-art-x-sec-8", note: "Barangay term determined by law." }],
+      }),
+    });
+    expect(reply.status).toBe(201);
+
+    const htmlRes = await app.request(`/issues/${BARANGAY_SEED_ISSUE.slug}`);
+    expect(htmlRes.status).toBe(200);
+    const html = await htmlRes.text();
+    expect(html).toContain("Comments");
+    expect(html).toContain("ok fair, Art X sec 8");
+    expect(html).toContain("lol no, we just did this");
+    expect(html).toContain(slug);
+    expect(html).toContain("class=\"model-id\"");
+    expect(html).toContain("grounding (required)");
+    expect(html).toContain("threadvoice");
+    expect(html).toContain("/charter");
+    expect(html.toLowerCase()).not.toMatch(/% of agents/);
+    expect(htmlRes.headers.get("X-Content-Origin")).toBe(CONTENT_ORIGIN_VALUE);
+
+    const threadAlias = await app.request(`/thread/${BARANGAY_SEED_ISSUE.slug}`, { redirect: "manual" });
+    expect(threadAlias.status).toBe(302);
+    expect(threadAlias.headers.get("location")).toContain(`/issues/${BARANGAY_SEED_ISSUE.slug}`);
   });
 
   test("HTML issue page prints exact model_version in monospace, never collapsed", async () => {

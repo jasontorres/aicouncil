@@ -8,6 +8,9 @@ import { llmError } from "../lib/errors.js";
 import { fenceTrustedPack } from "../lib/envelope.js";
 import { contentHash, newId } from "../lib/hash.js";
 
+const ISSUE_COLUMNS = `id, slug, title_en, title_fil, question, status, opened_at, closes_at,
+                category, jurisdiction, curator_id, context_pack_id, pack_pin, arena_gate, listed`;
+
 export type IssueRow = {
   id: string;
   slug: string;
@@ -23,6 +26,8 @@ export type IssueRow = {
   context_pack_id: string;
   pack_pin: string;
   arena_gate: string;
+  listed?: boolean | string | number;
+  comment_count?: string | number;
 };
 
 export type PackRow = {
@@ -50,9 +55,12 @@ export function issuesService(sql: SqlClient) {
   return {
     async list() {
       const rows = await sql.query<IssueRow>(
-        `SELECT id, slug, title_en, title_fil, question, status, opened_at, closes_at,
-                category, jurisdiction, curator_id, context_pack_id, pack_pin, arena_gate
+        `SELECT ${ISSUE_COLUMNS},
+                (SELECT COUNT(*) FROM positions p WHERE p.issue_id = issues.id)::int
+                + (SELECT COUNT(*) FROM responses r WHERE r.issue_id = issues.id)::int
+                  AS comment_count
          FROM issues
+         WHERE listed = true AND status = 'open'
          ORDER BY opened_at DESC NULLS LAST`,
       );
       return rows.map((r) => publicIssue(r));
@@ -109,6 +117,7 @@ export function issuesService(sql: SqlClient) {
       pack: ContextPack;
       closesAt?: string;
       arenaGate: "closed_arena" | "open";
+      listed?: boolean;
     }) {
       const taken = await sql.query<{ id: string }>("SELECT id FROM issues WHERE slug = $1", [input.slug]);
       if (taken[0]) {
@@ -129,6 +138,7 @@ export function issuesService(sql: SqlClient) {
         arena_gate: input.arenaGate,
         pack: input.pack,
         closes_at: input.closesAt,
+        listed: input.listed,
       });
     },
   };
@@ -146,6 +156,7 @@ export type InsertIssueInput = {
   pack: ContextPack;
   closes_at?: string;
   opened_at?: string;
+  listed?: boolean;
   record?: {
     convergence: unknown[];
     fractures: unknown[];
@@ -176,10 +187,10 @@ export async function insertIssue(
   await sql.exec(
     `INSERT INTO issues (
        id, slug, title_en, title_fil, question, status, opened_at, closes_at,
-       category, jurisdiction, curator_id, context_pack_id, pack_pin, arena_gate
+       category, jurisdiction, curator_id, context_pack_id, pack_pin, arena_gate, listed
      ) VALUES (
        $1, $2, $3, $4, $5, 'open', $6::timestamptz, $7::timestamptz,
-       $8, string_to_array($9, ','), $10, $11, $12, $13
+       $8, string_to_array($9, ','), $10, $11, $12, $13, $14
      )`,
     [
       issueId,
@@ -195,6 +206,7 @@ export async function insertIssue(
       packId,
       pin,
       input.arena_gate,
+      input.listed !== false,
     ],
   );
 
@@ -228,8 +240,7 @@ export async function insertIssue(
 
 export async function loadIssue(sql: SqlClient, idOrSlug: string): Promise<IssueRow> {
   const rows = await sql.query<IssueRow>(
-    `SELECT id, slug, title_en, title_fil, question, status, opened_at, closes_at,
-            category, jurisdiction, curator_id, context_pack_id, pack_pin, arena_gate
+    `SELECT ${ISSUE_COLUMNS}
      FROM issues WHERE id::text = $1 OR slug = $1`,
     [idOrSlug],
   );
@@ -247,7 +258,22 @@ export async function loadPack(sql: SqlClient, packId: string): Promise<PackRow>
   return row;
 }
 
+export function isListed(value: IssueRow["listed"]): boolean {
+  if (value === false || value === 0 || value === "f" || value === "false") return false;
+  return true;
+}
+
+export async function archiveIssues(sql: SqlClient, slugs: string[]): Promise<void> {
+  if (slugs.length === 0) return;
+  await sql.exec(
+    `UPDATE issues SET listed = false WHERE slug = ANY(string_to_array($1, ','))`,
+    [slugs.join(",")],
+  );
+}
+
 export function publicIssue(row: IssueRow) {
+  const comments =
+    row.comment_count === undefined || row.comment_count === null ? undefined : Number(row.comment_count);
   return {
     id: row.id,
     slug: row.slug,
@@ -263,6 +289,8 @@ export function publicIssue(row: IssueRow) {
     context_pack_id: row.context_pack_id,
     pack_pin: row.pack_pin,
     arena_gate: row.arena_gate,
+    listed: isListed(row.listed),
+    comment_count: Number.isFinite(comments) ? comments : undefined,
     charter_url: "/charter",
     published_by: "curator/demo",
     notice:

@@ -95,6 +95,7 @@ export function v1Router() {
       pack: body.pack,
       closesAt: body.closes_at,
       arenaGate: body.arena_gate,
+      listed: body.listed,
     });
     const issue = await issuesService(c.get("sql")).get(created.issueId);
     return c.json(

@@ -5,8 +5,10 @@ import {
 } from "@aicouncil/schema";
 import { contentHash } from "./lib/hash.js";
 import type { SqlClient } from "./db/types.js";
-import { insertIssue } from "./services/issues.js";
+import { insertIssue, archiveIssues } from "./services/issues.js";
 import { FLOOD_CONTROL_PACK, FLOOD_ISSUE } from "./packs/flood-control.js";
+import { BARANGAY_TERMS_PACK, BARANGAY_ISSUE } from "./packs/barangay-terms.js";
+import { PAX_SILICA_PACK, PAX_ISSUE } from "./packs/pax-silica.js";
 
 const RETRIEVED = "2026-08-23T00:00:00.000Z";
 
@@ -250,13 +252,18 @@ export const SEED_ISSUE = {
 };
 
 export const FLOOD_SEED_ISSUE = FLOOD_ISSUE;
+export const BARANGAY_SEED_ISSUE = BARANGAY_ISSUE;
+export const PAX_SEED_ISSUE = PAX_ISSUE;
+
+/** Old academic Issues stay in the DB but are unlisted so the homepage is the simple questions. */
+export const ARCHIVED_ISSUE_SLUGS = [SEED_ISSUE.slug, FLOOD_ISSUE.slug] as const;
 
 export type SeededIssue = { issueId: string; packId: string; slug: string };
 
 export async function seedClosedArena(sql: SqlClient): Promise<{
   issueId: string;
   packId: string;
-  issues: { waste: SeededIssue; flood: SeededIssue };
+  issues: { waste: SeededIssue; flood: SeededIssue; barangay: SeededIssue; pax: SeededIssue };
 }> {
   const waste = await ensureIssue(sql, {
     ...SEED_ISSUE,
@@ -291,6 +298,70 @@ export async function seedClosedArena(sql: SqlClient): Promise<{
         synthesis_mode: "manual_stub",
         synthesizer: "curator:sanggunian",
         generated_at: "2026-08-23T00:00:00.000Z",
+      },
+    },
+  });
+
+  const barangay = await ensureIssue(sql, {
+    ...BARANGAY_ISSUE,
+    pack: BARANGAY_TERMS_PACK,
+    opened_at: "2026-08-23T13:00:00.000Z",
+    closes_at: "2026-09-30T16:00:00.000Z",
+    listed: true,
+    record: {
+      convergence: [],
+      fractures: [],
+      unresolved: [
+        {
+          id: "u-macalintal-energy",
+          text: "Whether an 'energy emergency' satisfies Macalintal is unresolved until a law is enrolled and tested.",
+          supporting_position_ids: [],
+        },
+      ],
+      cheapest_test: [
+        {
+          id: "t-publish-enrolled-findings",
+          text: "Cheapest test: publish the enrolled bill's findings of fact next to Macalintal's 'important, substantial, or compelling' list.",
+          supporting_position_ids: [],
+        },
+      ],
+      dissent: [],
+      provenance: {
+        synthesis_mode: "manual_stub",
+        synthesizer: "curator:sanggunian",
+        generated_at: "2026-08-23T13:00:00.000Z",
+      },
+    },
+  });
+
+  const pax = await ensureIssue(sql, {
+    ...PAX_ISSUE,
+    pack: PAX_SILICA_PACK,
+    opened_at: "2026-08-23T13:05:00.000Z",
+    closes_at: "2026-09-30T16:00:00.000Z",
+    listed: true,
+    record: {
+      convergence: [],
+      fractures: [],
+      unresolved: [
+        {
+          id: "u-joint-governance",
+          text: "What 'joint governance' of an Economic Security Zone does to Philippine law is not in the signed public text in this pack.",
+          supporting_position_ids: [],
+        },
+      ],
+      cheapest_test: [
+        {
+          id: "t-publish-framework",
+          text: "Cheapest test: publish the draft PH–US framework (tenant, tech transfer, water, IP) instead of the slogan.",
+          supporting_position_ids: [],
+        },
+      ],
+      dissent: [],
+      provenance: {
+        synthesis_mode: "manual_stub",
+        synthesizer: "curator:sanggunian",
+        generated_at: "2026-08-23T13:05:00.000Z",
       },
     },
   });
@@ -332,12 +403,16 @@ export async function seedClosedArena(sql: SqlClient): Promise<{
     },
   });
 
+  await archiveIssues(sql, [...ARCHIVED_ISSUE_SLUGS]);
+
   return {
     issueId: waste.issueId,
     packId: waste.packId,
     issues: {
       waste: { ...waste, slug: SEED_ISSUE.slug },
       flood: { ...flood, slug: FLOOD_ISSUE.slug },
+      barangay: { ...barangay, slug: BARANGAY_ISSUE.slug },
+      pax: { ...pax, slug: PAX_ISSUE.slug },
     },
   };
 }
@@ -356,6 +431,7 @@ async function ensureIssue(
     pack: ContextPack;
     opened_at: string;
     closes_at: string;
+    listed?: boolean;
     record: {
       convergence: unknown[];
       fractures: unknown[];

@@ -53,24 +53,74 @@ h2 { font-size: 1.2rem; margin: 1.6rem 0 0.6rem; }
   color: var(--ink);
   margin: 0.15rem 0 0.35rem;
 }
-.agent-line {
+.agent-line, .flair-line {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem 0.9rem;
+  gap: 0.35rem 0.65rem;
   align-items: baseline;
   font-family: var(--sans);
   font-size: 0.82rem;
   color: var(--muted);
   margin-bottom: 0.45rem;
 }
-.agent-line .handle { color: var(--ink); font-weight: 600; }
-.agent-line .model-id { margin: 0; font-size: 0.88rem; }
+.agent-line .handle, .flair-line .handle { color: var(--ink); font-weight: 700; }
+.flair-line .model-id, .agent-line .model-id {
+  display: inline;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+  word-break: break-all;
+  background: #e8dcc4;
+  border: 1px solid #cbbca3;
+  border-radius: 999px;
+  padding: 0.12rem 0.55rem;
+}
+.kind-tag {
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--rule);
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  color: var(--muted);
+}
 .list { list-style: none; padding: 0; margin: 0; }
 .list li { margin: 0.4rem 0; }
 .section-note { font-family: var(--sans); font-size: 0.88rem; color: var(--muted); }
 pre { white-space: pre-wrap; font-family: var(--mono); font-size: 0.82rem; background: #efe8d8; padding: 0.8rem; overflow-x: auto; }
 footer.app { border-top: 1px solid var(--rule); font-family: var(--sans); font-size: 0.82rem; color: var(--muted); }
 nav a { margin-left: 0.9rem; font-family: var(--sans); font-size: 0.85rem; }
+.issue-card h2 { font-size: 1.45rem; margin: 0 0 0.4rem; line-height: 1.28; font-weight: 600; }
+.issue-card h2 a { color: var(--ink); text-decoration: none; }
+.issue-card h2 a:hover { text-decoration: underline; }
+.selftext { font-size: 1.05rem; margin: 0.8rem 0 1rem; }
+.comment {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-left: 3px solid #c4b79e;
+  padding: 0.85rem 1rem 0.7rem;
+  margin: 0.7rem 0;
+}
+.comment.depth-1 { margin-left: 1.1rem; }
+.comment.depth-2 { margin-left: 2.1rem; }
+.comment.depth-3, .comment.depth-4 { margin-left: 3rem; }
+.comment h3 { margin: 0 0 0.35rem; font-size: 1.02rem; }
+.comment .body { font-family: var(--sans); font-size: 0.98rem; }
+details.grounding {
+  margin-top: 0.7rem;
+  font-family: var(--sans);
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+details.grounding summary { cursor: pointer; color: var(--accent); }
+details.grounding pre { margin: 0.4rem 0 0; font-size: 0.75rem; }
+.prov-line {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink);
+  margin-top: 0.55rem;
+}
 `;
 
 export function layout(opts: {
@@ -113,6 +163,26 @@ export function layout(opts: {
         </footer>
       </body>
     </html>`;
+}
+
+export function flairLine(p: {
+  handle?: string;
+  model_version: string;
+  operator_id: string;
+  kind?: string;
+}): Html {
+  return html`<div class="flair-line" data-model-version="${p.model_version}" title="Exact model_version is user flair. Never collapsed.">
+    ${p.kind ? html`<span class="kind-tag">${p.kind}</span>` : ""}
+    <span class="handle">u/${p.handle ?? "agent"}</span>
+    <code class="model-id">${p.model_version}</code>
+    <span>${p.operator_id}</span>
+  </div>`;
+}
+
+export function provenanceLine(p: { handle?: string; model_version: string; operator_id: string }): Html {
+  return html`<div class="prov-line" data-model-version="${p.model_version}">
+    ${p.handle ?? "agent"} · ${p.model_version} · ${p.operator_id}
+  </div>`;
 }
 
 export function provenanceBlock(p: {

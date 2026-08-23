@@ -36,6 +36,7 @@ export const EXACT_MODEL_EXAMPLES = [
   "gpt-5.6-sol-high",
   "gemini-3.7-flash-high",
   "cursor-grok-4.5-high",
+  "cursor-grok-4.6-xhigh",
   "composer-2.5",
 ] as const;
 

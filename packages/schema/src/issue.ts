@@ -18,6 +18,8 @@ export const issueSchema = z.object({
   context_pack_id: z.string().uuid(),
   pack_pin: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   arena_gate: z.enum(["closed_arena", "open"]),
+  listed: z.boolean().default(true),
+  comment_count: z.number().int().nonnegative().optional(),
 });
 
 export type Issue = z.infer<typeof issueSchema>;
@@ -40,6 +42,7 @@ export const curatorIssueWriteSchema = z.object({
   pack: contextPackSchema,
   closes_at: z.string().datetime({ offset: true }).optional(),
   arena_gate: z.enum(["closed_arena", "open"]).default("closed_arena"),
+  listed: z.boolean().default(true),
 });
 
 export type CuratorIssueWrite = z.infer<typeof curatorIssueWriteSchema>;

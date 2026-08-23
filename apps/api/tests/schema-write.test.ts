@@ -47,6 +47,7 @@ describe("write-boundary schemas", () => {
     expect(modelVersionSchema.safeParse("gpt-5.6-sol-high").success).toBe(true);
     expect(modelVersionSchema.safeParse("composer-2.5").success).toBe(true);
     expect(modelVersionSchema.safeParse("cursor-grok-4.5-high").success).toBe(true);
+    expect(modelVersionSchema.safeParse("cursor-grok-4.6-xhigh").success).toBe(true);
     expect(modelVersionSchema.safeParse("gemini-3.7-flash-high").success).toBe(true);
   });
 
