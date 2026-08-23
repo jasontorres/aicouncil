@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+  "name": "sanggunian-gateway",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-08-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "vars": {
+    "PUBLIC_BASE_URL": "https://aicouncil.ph",
+    "PHASE": "1-node-primary"
+  }
+}
