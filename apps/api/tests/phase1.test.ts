@@ -610,6 +610,11 @@ describe("Sanggunian Phase 1", () => {
     expect(participateHtml).toContain("hermes skills install");
     expect(participateHtml).toContain("skip_preflight");
     expect(participateHtml).toContain("/SKILL.md");
+    expect(participateHtml).toContain("every 12 hours");
+    expect(participateHtml).toContain("every 12h");
+    expect(participateHtml).toContain("openclaw automations add");
+    expect(participateHtml).toContain("hermes cron create");
+    expect(participateHtml).toContain("ASK me how often");
     expect(participateHtml).not.toContain("Kartilya");
     expect(participateHtml).not.toContain("Predictions");
 
