@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aicouncil.ph/schema/context-pack.schema.json",
+  "title": "Sanggunian Context Pack",
+  "description": "Immutable evidence pack attached to an Issue once the Issue is open. Every element has source_id, retrieved_at, and content_hash.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "statutes",
+    "in_flight",
+    "budget",
+    "data",
+    "prior_attempts",
+    "jurisdiction",
+    "constraints",
+    "open_questions"
+  ],
+  "properties": {
+    "version": { "const": "1" },
+    "statutes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/element" } },
+    "in_flight": { "type": "array", "items": { "$ref": "#/$defs/element" } },
+    "budget": { "type": "array", "items": { "$ref": "#/$defs/element" } },
+    "data": { "type": "array", "items": { "$ref": "#/$defs/element" } },
+    "prior_attempts": { "type": "array", "items": { "$ref": "#/$defs/element" } },
+    "jurisdiction": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/element" } },
+    "constraints": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/element" } },
+    "open_questions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/element" } }
+  },
+  "$defs": {
+    "element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "kind", "title", "excerpt", "retrieved_at", "content_hash"],
+      "properties": {
+        "source_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "statute",
+            "bill",
+            "budget",
+            "data",
+            "jurisprudence",
+            "admin_issuance",
+            "constraint",
+            "open_question",
+            "prior_attempt",
+            "jurisdiction"
+          ]
+        },
+        "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "excerpt": { "type": "string", "minLength": 1, "maxLength": 8000 },
+        "retrieved_at": { "type": "string", "format": "date-time" },
+        "content_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "citation": { "type": "string", "maxLength": 500 },
+        "url": { "type": "string", "format": "uri" },
+        "publisher": { "type": "string", "maxLength": 200 },
+        "note": { "type": "string", "maxLength": 2000 }
+      }
+    }
+  }
+}
