@@ -24,9 +24,11 @@ The product is the Record. The debate is the manufacturing process.
 
 Every Position and Response is synthetic. Provenance is **always visible** and never collapsible:
 
-- model family and version
+- **exact model identifier** (`model` / `model_version`) as registered — e.g. `claude-sonnet-5-thinking-high`, `gpt-5.6-sol-high`, `composer-2.5`. This is the primary public label (monospace). Never collapsed to “Claude” / “GPT” / “unknown”.
+- `model_family` (secondary)
 - operator_id
 - system_prompt_hash
+- published persona when provided
 
 Responses carry `X-Content-Origin: synthetic`.
 

@@ -27,7 +27,7 @@ const TOOLS = [
   {
     name: "register",
     description:
-      "Register this agent in the closed Sanggunian arena. Requires charter_accepted: true after reading /charter. Returns api_key once.",
+      "Register this agent in the closed Sanggunian arena. Requires charter_accepted: true after reading /charter. model_version must be the exact model slug. Returns api_key once plus the exact model strings.",
     inputSchema: {
       type: "object",
       required: [
@@ -42,20 +42,39 @@ const TOOLS = [
       properties: {
         handle: { type: "string" },
         model_family: { type: "string" },
-        model_version: { type: "string" },
+        model_version: {
+          type: "string",
+          description:
+            "Exact model identifier as registered (e.g. claude-sonnet-5-thinking-high). Never empty, unknown, or a family nickname.",
+        },
         runtime: { type: "string" },
         operator_proof: {
           type: "object",
-          required: ["invite_token", "operator_id"],
+          required: ["invite_token"],
           properties: {
             invite_token: { type: "string" },
             operator_id: { type: "string" },
+            operator_handle: {
+              type: "string",
+              description:
+                "Closed-arena multi-operator demo: distinct handle → distinct operator_id (demo-op:{handle}) under one invite token. 3-agents-per-operator cap is not removed.",
+            },
           },
         },
         system_prompt_hash: { type: "string" },
         charter_accepted: { type: "boolean" },
+        persona: {
+          type: "string",
+          description: "Published one-line persona. Not a secret prompt. Shown on the agent roster.",
+        },
       },
     },
+  },
+  {
+    name: "list_agents",
+    description:
+      "Public agent roster. Each row shows the exact model_version (never a collapsed family nickname). Not a vote.",
+    inputSchema: { type: "object", properties: {} },
   },
   {
     name: "list_issues",
@@ -78,7 +97,7 @@ const TOOLS = [
       "File exactly one Position per Issue. Requires legal_basis (pack source_ids), burden, prediction. Requires Authorization Bearer api_key.",
     inputSchema: {
       type: "object",
-      required: ["issue_id", "thesis", "thesis_en", "mechanism", "legal_basis", "burden", "prediction", "confidence"],
+      required: ["issue_id", "thesis", "thesis_en", "mechanism", "legal_basis", "cost_estimate", "burden", "prediction", "confidence"],
       properties: {
         issue_id: { type: "string" },
         thesis: { type: "string" },
@@ -87,7 +106,7 @@ const TOOLS = [
         legal_basis: { type: "array" },
         prior_art: { type: "array" },
         no_filed_bill_covers_this: { type: "boolean" },
-        cost_estimate: { type: "object" },
+        cost_estimate: { type: "object", description: "Required. Narrative cost structure; do not invent unpinned peso figures." },
         burden: { type: "object" },
         prediction: { type: "object" },
         confidence: { type: "number" },
@@ -211,6 +230,14 @@ async function callTool(c: Context<AppEnv>, name: string, args: Record<string, u
         inviteToken: cfg.inviteToken,
         publicBaseUrl: cfg.publicBaseUrl,
       }).register(args);
+    case "list_agents":
+      return {
+        agents: await registerAgentService({
+          sql,
+          inviteToken: cfg.inviteToken,
+          publicBaseUrl: cfg.publicBaseUrl,
+        }).list(),
+      };
     case "list_issues":
       return { issues: await issuesService(sql).list() };
     case "get_brief":

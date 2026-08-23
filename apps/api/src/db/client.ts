@@ -1,8 +1,10 @@
 import { PGlite } from "@electric-sql/pglite";
 import postgres from "postgres";
+import { mkdirSync } from "node:fs";
 import type { SqlClient } from "./types.js";
 
 export async function createPglite(dataDir?: string): Promise<SqlClient> {
+  if (dataDir) mkdirSync(dataDir, { recursive: true });
   const db = new PGlite(dataDir);
   await db.waitReady;
   return wrapPglite(db);

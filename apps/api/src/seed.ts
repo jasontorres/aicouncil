@@ -3,8 +3,10 @@ import {
   type ContextPack,
   type PackElement,
 } from "@aicouncil/schema";
-import { contentHash, newId } from "./lib/hash.js";
+import { contentHash } from "./lib/hash.js";
 import type { SqlClient } from "./db/types.js";
+import { insertIssue } from "./services/issues.js";
+import { FLOOD_CONTROL_PACK, FLOOD_ISSUE } from "./packs/flood-control.js";
 
 const RETRIEVED = "2026-08-23T00:00:00.000Z";
 
@@ -247,11 +249,124 @@ export const SEED_ISSUE = {
   arena_gate: "closed_arena" as const,
 };
 
-export async function seedClosedArena(sql: SqlClient): Promise<{ issueId: string; packId: string }> {
-  const existing = await sql.query<{ id: string }>(
-    "SELECT id FROM issues WHERE slug = $1",
-    [SEED_ISSUE.slug],
-  );
+export const FLOOD_SEED_ISSUE = FLOOD_ISSUE;
+
+export type SeededIssue = { issueId: string; packId: string; slug: string };
+
+export async function seedClosedArena(sql: SqlClient): Promise<{
+  issueId: string;
+  packId: string;
+  issues: { waste: SeededIssue; flood: SeededIssue };
+}> {
+  const waste = await ensureIssue(sql, {
+    ...SEED_ISSUE,
+    pack: METRO_MANILA_WASTE_PACK,
+    opened_at: "2026-08-23T00:00:00.000Z",
+    closes_at: "2026-09-30T16:00:00.000Z",
+    record: {
+      convergence: [],
+      fractures: [
+        {
+          id: "f-wte-vs-landfill",
+          text: "Placeholder fracture: waste-to-energy legality versus additional sanitary-landfill airspace. No positions filed yet; this stub exists so the Record shape is visible before synthesis.",
+          supporting_position_ids: [],
+        },
+      ],
+      unresolved: [
+        {
+          id: "u-gap-number",
+          text: "The 2026 residual-capacity gap is not pinned in the Context Pack. A numeric claim remains unresolved until a cheapest test publishes methods.",
+          supporting_position_ids: [],
+        },
+      ],
+      cheapest_test: [
+        {
+          id: "t-reconcile-tonnes",
+          text: "Cheapest test: a single NSWMC/MMDA/LGU table of residual tonnes and remaining host airspace, with methods, covering 2024–2026.",
+          supporting_position_ids: [],
+        },
+      ],
+      dissent: [],
+      provenance: {
+        synthesis_mode: "manual_stub",
+        synthesizer: "curator:sanggunian",
+        generated_at: "2026-08-23T00:00:00.000Z",
+      },
+    },
+  });
+
+  const flood = await ensureIssue(sql, {
+    ...FLOOD_ISSUE,
+    pack: FLOOD_CONTROL_PACK,
+    opened_at: "2026-08-23T00:00:00.000Z",
+    closes_at: "2026-09-30T16:00:00.000Z",
+    record: {
+      convergence: [],
+      fractures: [
+        {
+          id: "f-basin-vs-district",
+          text: "Placeholder fracture: basin master-plan sequencing versus district-sliced GAA project lists. No positions filed yet.",
+          supporting_position_ids: [],
+        },
+      ],
+      unresolved: [
+        {
+          id: "u-peso-pin",
+          text: "The 2026 GAA flood-control peso total is not pinned in the Context Pack. Dual-budgeting between DPWH and LGUs remains unresolved until a unique-ID table exists.",
+          supporting_position_ids: [],
+        },
+      ],
+      cheapest_test: [
+        {
+          id: "t-unique-id-table",
+          text: "Cheapest test: DBM/DPWH/DILG table of unique project IDs with coordinates, pesos, and implementing unit for GAA 2024–2026.",
+          supporting_position_ids: [],
+        },
+      ],
+      dissent: [],
+      provenance: {
+        synthesis_mode: "manual_stub",
+        synthesizer: "curator:sanggunian",
+        generated_at: "2026-08-23T00:00:00.000Z",
+      },
+    },
+  });
+
+  return {
+    issueId: waste.issueId,
+    packId: waste.packId,
+    issues: {
+      waste: { ...waste, slug: SEED_ISSUE.slug },
+      flood: { ...flood, slug: FLOOD_ISSUE.slug },
+    },
+  };
+}
+
+async function ensureIssue(
+  sql: SqlClient,
+  input: {
+    slug: string;
+    title_en: string;
+    title_fil: string;
+    question: string;
+    category: string;
+    jurisdiction: string[];
+    curator_id: string;
+    arena_gate: string;
+    pack: ContextPack;
+    opened_at: string;
+    closes_at: string;
+    record: {
+      convergence: unknown[];
+      fractures: unknown[];
+      unresolved: unknown[];
+      cheapest_test: unknown[];
+      dissent: unknown[];
+      provenance: Record<string, unknown>;
+    };
+  },
+): Promise<{ issueId: string; packId: string }> {
+  const existing = await sql.query<{ id: string }>("SELECT id FROM issues WHERE slug = $1", [input.slug]);
   if (existing[0]) {
     const pack = await sql.query<{ context_pack_id: string }>(
       "SELECT context_pack_id FROM issues WHERE id = $1",
@@ -259,86 +374,5 @@ export async function seedClosedArena(sql: SqlClient): Promise<{ issueId: string
     );
     return { issueId: existing[0].id, packId: pack[0]?.context_pack_id ?? "" };
   }
-
-  const packId = newId();
-  const issueId = newId();
-  const recordId = newId();
-  const pin = contentHash(JSON.stringify(METRO_MANILA_WASTE_PACK));
-  const opened = "2026-08-23T00:00:00.000Z";
-  const closes = "2026-09-30T16:00:00.000Z";
-
-  await sql.exec(
-    `INSERT INTO context_packs (id, pack, pack_pin, sealed_at)
-     VALUES ($1, $2::jsonb, $3, $4::timestamptz)`,
-    [packId, JSON.stringify(METRO_MANILA_WASTE_PACK), pin, opened],
-  );
-
-  await sql.exec(
-    `INSERT INTO issues (
-       id, slug, title_en, title_fil, question, status, opened_at, closes_at,
-       category, jurisdiction, curator_id, context_pack_id, pack_pin, arena_gate
-     ) VALUES (
-       $1, $2, $3, $4, $5, 'open', $6::timestamptz, $7::timestamptz,
-       $8, string_to_array($9, ','), $10, $11, $12, $13
-     )`,
-    [
-      issueId,
-      SEED_ISSUE.slug,
-      SEED_ISSUE.title_en,
-      SEED_ISSUE.title_fil,
-      SEED_ISSUE.question,
-      opened,
-      closes,
-      SEED_ISSUE.category,
-      SEED_ISSUE.jurisdiction.join(","),
-      SEED_ISSUE.curator_id,
-      packId,
-      pin,
-      SEED_ISSUE.arena_gate,
-    ],
-  );
-
-  const provenance = {
-    synthesis_mode: "manual_stub",
-    synthesizer: "curator:sanggunian",
-    generated_at: opened,
-  };
-
-  await sql.exec(
-    `INSERT INTO council_records (
-       id, issue_id, convergence, fractures, unresolved, cheapest_test, dissent, provenance, synthesis_mode
-     ) VALUES (
-       $1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, 'manual_stub'
-     )`,
-    [
-      recordId,
-      issueId,
-      JSON.stringify([]),
-      JSON.stringify([
-        {
-          id: "f-wte-vs-landfill",
-          text: "Placeholder fracture: waste-to-energy legality versus additional sanitary-landfill airspace. No positions filed yet; this stub exists so the Record shape is visible before synthesis.",
-          supporting_position_ids: [],
-        },
-      ]),
-      JSON.stringify([
-        {
-          id: "u-gap-number",
-          text: "The 2026 residual-capacity gap is not pinned in the Context Pack. A numeric claim remains unresolved until a cheapest test publishes methods.",
-          supporting_position_ids: [],
-        },
-      ]),
-      JSON.stringify([
-        {
-          id: "t-reconcile-tonnes",
-          text: "Cheapest test: a single NSWMC/MMDA/LGU table of residual tonnes and remaining host airspace, with methods, covering 2024–2026.",
-          supporting_position_ids: [],
-        },
-      ]),
-      JSON.stringify([]),
-      JSON.stringify(provenance),
-    ],
-  );
-
-  return { issueId, packId };
+  return insertIssue(sql, input);
 }

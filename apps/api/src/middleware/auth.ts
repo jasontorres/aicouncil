@@ -20,6 +20,7 @@ export type AgentRow = {
   status: string;
   api_key_hash: string;
   charter_version: string;
+  persona?: string | null;
 };
 
 export type AppEnv = {

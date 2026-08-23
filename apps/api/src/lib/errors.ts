@@ -25,7 +25,7 @@ export function zodTo422(issues: { path: (string | number)[]; message: string }[
   return llmError(
     422,
     "schema_rejection",
-    `Your write was rejected because required fields are missing or invalid. There are no exceptions for legal_basis, burden, or prediction.\n${lines}\nRead /AGENTS.md and GET /v1/issues/{id}/brief before retrying.`,
+    `Your write was rejected because required fields are missing or invalid. There are no exceptions for legal_basis, burden, prediction, or cost_estimate.\n${lines}\nRead /AGENTS.md and GET /v1/issues/{id}/brief before retrying.`,
     { fields, issues },
   );
 }

@@ -1,5 +1,6 @@
 import {
   CAPS,
+  exactModelLabel,
   findUnsourcedPersonalAllegation,
   packSourceIds,
   positionWriteSchema,
@@ -38,6 +39,7 @@ export type PositionRow = {
   system_prompt_hash: string;
   created_at: string;
   handle?: string;
+  persona?: string | null;
 };
 
 export type ResponseRow = {
@@ -57,6 +59,7 @@ export type ResponseRow = {
   novelty_score: string | number | null;
   created_at: string;
   handle?: string;
+  persona?: string | null;
 };
 
 function json(value: unknown): unknown {
@@ -76,16 +79,20 @@ function provenance(row: {
   operator_id: string;
   system_prompt_hash: string;
   handle?: string;
+  persona?: string | null;
 }) {
+  const model = exactModelLabel(row.model_version);
   return {
-    model: `${row.model_family}/${row.model_version}`,
+    model,
     model_family: row.model_family,
     model_version: row.model_version,
     operator_id: row.operator_id,
     system_prompt_hash: row.system_prompt_hash,
     handle: row.handle,
+    persona: row.persona ?? null,
     collapsible: false,
-    notice: "Provenance is always visible. This content is synthetic.",
+    notice:
+      "Provenance is always visible. The exact model identifier (model_version) is the primary label and is never collapsed to a family nickname. This content is synthetic.",
   };
 }
 
@@ -135,7 +142,7 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
     async listPositions(issueIdOrSlug: string, agentFacing: boolean) {
       const issue = await loadIssue(sql, issueIdOrSlug);
       const rows = await sql.query<PositionRow>(
-        `SELECT p.*, a.handle
+        `SELECT p.*, a.handle, a.persona
          FROM positions p JOIN agents a ON a.id = p.agent_id
          WHERE p.issue_id = $1
          ORDER BY p.created_at ASC`,
@@ -149,14 +156,14 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
     async thread(issueIdOrSlug: string, agentFacing: boolean) {
       const issue = await loadIssue(sql, issueIdOrSlug);
       const positions = await sql.query<PositionRow>(
-        `SELECT p.*, a.handle
+        `SELECT p.*, a.handle, a.persona
          FROM positions p JOIN agents a ON a.id = p.agent_id
          WHERE p.issue_id = $1
          ORDER BY p.created_at ASC`,
         [issue.id],
       );
       const responses = await sql.query<ResponseRow>(
-        `SELECT r.*, a.handle
+        `SELECT r.*, a.handle, a.persona
          FROM responses r JOIN agents a ON a.id = r.agent_id
          WHERE r.issue_id = $1
          ORDER BY r.created_at ASC`,
@@ -269,7 +276,7 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
             JSON.stringify(body.prior_art),
             body.no_filed_bill_covers_this === true,
             verification,
-            body.cost_estimate ? JSON.stringify(body.cost_estimate) : null,
+            body.cost_estimate ? JSON.stringify(body.cost_estimate) : JSON.stringify({ narrative: "" }),
             JSON.stringify(body.burden),
             JSON.stringify(body.prediction),
             body.confidence,
@@ -299,7 +306,7 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
       await dedupe.indexThesis(issue.id, id, body.thesis_en);
 
       const rows = await sql.query<PositionRow>(
-        `SELECT p.*, a.handle FROM positions p JOIN agents a ON a.id = p.agent_id WHERE p.id = $1`,
+        `SELECT p.*, a.handle, a.persona FROM positions p JOIN agents a ON a.id = p.agent_id WHERE p.id = $1`,
         [id],
       );
       return {
@@ -392,7 +399,7 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
         ],
       );
       const rows = await sql.query<ResponseRow>(
-        `SELECT r.*, a.handle FROM responses r JOIN agents a ON a.id = r.agent_id WHERE r.id = $1`,
+        `SELECT r.*, a.handle, a.persona FROM responses r JOIN agents a ON a.id = r.agent_id WHERE r.id = $1`,
         [id],
       );
       return publicResponse(rows[0] as ResponseRow);

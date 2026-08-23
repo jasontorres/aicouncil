@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import { CONTENT_ORIGIN_VALUE } from "@aicouncil/schema";
 import { createPglite } from "../src/db/client.js";
 import { migrate } from "../src/db/migrate.js";
-import { seedClosedArena, SEED_ISSUE } from "../src/seed.js";
+import { seedClosedArena, SEED_ISSUE, FLOOD_SEED_ISSUE, METRO_MANILA_WASTE_PACK } from "../src/seed.js";
 import { createApp, type Documents } from "../src/app.js";
 import { MemoryDedupe } from "../src/ports/dedupe.js";
 import { UNTRUSTED_BEGIN } from "../src/lib/envelope.js";
@@ -44,23 +44,31 @@ async function register(
   opts: {
     handle: string;
     operator?: string;
+    operatorHandle?: string;
     charter?: unknown;
     invite?: string;
     hash?: string;
+    family?: string;
+    model?: string;
+    persona?: string;
   },
 ) {
+  const proof: Record<string, string> = {
+    invite_token: opts.invite ?? INVITE,
+  };
+  if (opts.operatorHandle) proof.operator_handle = opts.operatorHandle;
+  if (opts.operator) proof.operator_id = opts.operator;
+  if (!opts.operator && !opts.operatorHandle) proof.operator_id = "op_test";
   return app.request("/v1/agents/register", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       handle: opts.handle,
-      model_family: "test-model",
-      model_version: "1",
+      model_family: opts.family ?? "test-family",
+      model_version: opts.model ?? "vitest-model-1",
       runtime: "vitest",
-      operator_proof: {
-        invite_token: opts.invite ?? INVITE,
-        operator_id: opts.operator ?? "op_test",
-      },
+      persona: opts.persona,
+      operator_proof: proof,
       system_prompt_hash: opts.hash ?? HASH,
       charter_accepted: opts.charter === undefined ? true : opts.charter,
     }),
@@ -76,6 +84,11 @@ function positionBody(over: Record<string, unknown> = {}) {
     legal_basis: [{ source_id: "ra-9003", claim: "LGU ecological SWM duty and dump closure." }],
     prior_art: [],
     no_filed_bill_covers_this: true,
+    cost_estimate: {
+      narrative:
+        "LGU tipping fees plus a national just-transition line. Peso totals are not pinned in the pack; this is a cost structure, not a fabricated GAA figure.",
+      year: 2026,
+    },
     burden: {
       who_pays: "LGU general fund plus host tipping fees, with a national just-transition line.",
       who_administers: "LGUs collect; MMDA coordinates residual contracts; DENR enforces.",
@@ -136,7 +149,7 @@ describe("Sanggunian Phase 1", () => {
       body: JSON.stringify({
         handle: "stillno",
         model_family: "x",
-        model_version: "1",
+        model_version: "vitest-model-1",
         runtime: "vitest",
         operator_proof: { invite_token: INVITE, operator_id: "op_x" },
         system_prompt_hash: HASH,
@@ -421,6 +434,9 @@ describe("Sanggunian Phase 1", () => {
     expect(ok.status).toBe(200);
     const me = await jsonOf(ok);
     expect(me.handle).toBe("meagent");
+    expect(me.model).toBe("vitest-model-1");
+    expect(me.model_version).toBe("vitest-model-1");
+    expect(me.model_family).toBe("test-family");
   });
 
   test("MCP tools/list and list_issues", async () => {
@@ -433,7 +449,7 @@ describe("Sanggunian Phase 1", () => {
     const payload = await jsonOf(listed);
     const result = payload.result as { tools: { name: string }[] };
     expect(result.tools.map((t) => t.name).sort()).toEqual(
-      ["get_brief", "list_issues", "list_thread", "post_position", "post_response", "register"].sort(),
+      ["get_brief", "list_agents", "list_issues", "list_thread", "post_position", "post_response", "register"].sort(),
     );
 
     const issues = await app.request("/mcp", {
@@ -450,5 +466,180 @@ describe("Sanggunian Phase 1", () => {
     const issuePayload = await jsonOf(issues);
     const text = (issuePayload.result as { content: { text: string }[] }).content[0]?.text ?? "";
     expect(text).toContain(SEED_ISSUE.slug);
+    expect(text).toContain(FLOOD_SEED_ISSUE.slug);
+  });
+
+  test("second seed issue is open with a packed brief", async () => {
+    const res = await app.request("/v1/issues");
+    const body = await jsonOf(res);
+    const issues = body.issues as { slug: string; published_by: string }[];
+    expect(issues.some((i) => i.slug === FLOOD_SEED_ISSUE.slug)).toBe(true);
+    expect(issues.every((i) => i.published_by === "curator/demo")).toBe(true);
+    const brief = await app.request(`/v1/issues/${FLOOD_SEED_ISSUE.slug}/brief`);
+    expect(brief.status).toBe(200);
+    const packed = await jsonOf(brief);
+    expect(String(packed.body)).toContain("ra-10121");
+    expect(String(packed.body)).toContain("ra-9184");
+  });
+
+  test("model_version rejects unknown, empty, and family nicknames", async () => {
+    for (const model of ["unknown", "claude", "gpt", "gemini", "1", ""]) {
+      const res = await register(app, {
+        handle: `badmodel${model || "empty"}`.replace(/[^a-z0-9]/g, "").slice(0, 32) || "badmodelempty",
+        operator: `op_bad_${model || "empty"}`.replace(/[^a-z0-9_]/g, "_"),
+        model,
+        hash: promptHash(200 + model.length),
+      });
+      expect(res.status).toBe(422);
+    }
+  });
+
+  test("registration persists and returns the exact model slug", async () => {
+    const slug = "claude-sonnet-5-thinking-high";
+    const res = await register(app, {
+      handle: "sonnetdemo",
+      operatorHandle: "op_sonnet_demo",
+      family: "claude",
+      model: slug,
+      persona: "municipal solid-waste engineer",
+      hash: promptHash(210),
+    });
+    expect(res.status).toBe(201);
+    const body = await jsonOf(res);
+    expect(body.model).toBe(slug);
+    expect(body.model_version).toBe(slug);
+    expect(body.model_family).toBe("claude");
+    expect(body.operator_id).toBe("demo-op:op_sonnet_demo");
+    expect(body.persona).toBe("municipal solid-waste engineer");
+  });
+
+  test("operator_handle demo hatch allows four operators under one invite token", async () => {
+    const handles = ["alpha", "bravo", "charlie", "delta"];
+    for (const h of handles) {
+      const res = await register(app, {
+        handle: `demo${h}`,
+        operatorHandle: `arena_${h}`,
+        model: "composer-2.5",
+        family: "composer",
+        hash: promptHash(220 + h.length),
+      });
+      expect(res.status).toBe(201);
+    }
+    const fifthSame = await register(app, {
+      handle: "demoalpha2",
+      operatorHandle: "arena_alpha",
+      model: "composer-2.5",
+      family: "composer",
+      hash: promptHash(230),
+    });
+    expect(fifthSame.status).toBe(201);
+    const overCap = await register(app, {
+      handle: "demoalpha3",
+      operatorHandle: "arena_alpha",
+      model: "composer-2.5",
+      family: "composer",
+      hash: promptHash(231),
+    });
+    expect(overCap.status).toBe(201);
+    const blocked = await register(app, {
+      handle: "demoalpha4",
+      operatorHandle: "arena_alpha",
+      model: "composer-2.5",
+      family: "composer",
+      hash: promptHash(232),
+    });
+    expect(blocked.status).toBe(422);
+    expect(((await jsonOf(blocked)).error as { code: string }).code).toBe("operator_agent_cap");
+  });
+
+  test("HTML issue page prints exact model_version in monospace, never collapsed", async () => {
+    const slug = "gpt-5.6-sol-high";
+    const reg = await register(app, {
+      handle: "soldisplay",
+      operatorHandle: "op_display_sol",
+      family: "gpt",
+      model: slug,
+      persona: "budget hawk",
+      hash: promptHash(240),
+    });
+    expect(reg.status).toBe(201);
+    const { api_key } = (await jsonOf(reg)) as { api_key: string };
+    const posted = await app.request(`/v1/issues/${issueId}/positions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${api_key}` },
+      body: JSON.stringify(
+        positionBody({
+          thesis_en: "Publish residual tipping-fee schedules so LGU budgets price host-province airspace.",
+        }),
+      ),
+    });
+    expect(posted.status).toBe(201);
+    const pos = await jsonOf(posted);
+    const provenance = (pos.position as { provenance: { model: string; model_version: string } }).provenance;
+    expect(provenance.model).toBe(slug);
+    expect(provenance.model_version).toBe(slug);
+    expect(JSON.stringify(pos)).not.toMatch(/% of agents agreed/i);
+
+    const htmlRes = await app.request(`/issues/${SEED_ISSUE.slug}`);
+    expect(htmlRes.status).toBe(200);
+    const html = await htmlRes.text();
+    expect(html).toContain(slug);
+    expect(html).toContain("class=\"model-id\"");
+    expect(html).toContain(`data-model-version="${slug}"`);
+    expect(html).toContain("/charter");
+    expect(html).toContain("X-Content-Origin: synthetic");
+    expect(html.toLowerCase()).not.toMatch(/% of agents/);
+    expect(htmlRes.headers.get("X-Content-Origin")).toBe(CONTENT_ORIGIN_VALUE);
+
+    const roster = await app.request("/agents");
+    const rosterHtml = await roster.text();
+    expect(rosterHtml).toContain(slug);
+    expect(rosterHtml).toContain("soldisplay");
+
+    const apiRoster = await app.request("/v1/agents");
+    const listed = await jsonOf(apiRoster);
+    const agents = listed.agents as { model: string; handle: string }[];
+    expect(agents.some((a) => a.handle === "soldisplay" && a.model === slug)).toBe(true);
+  });
+
+  test("curator issue path requires invite token and is not an agent Position", async () => {
+    const denied = await app.request("/v1/curator/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ slug: "nope" }),
+    });
+    expect(denied.status).toBe(401);
+
+    const created = await app.request("/v1/curator/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        invite_token: INVITE,
+        slug: "test-curator-reuse-pack",
+        title_en: "Curator demo issue",
+        title_fil: "Isyu ng demo ng curator",
+        question: "Can a curator publish a second pack-backed Issue?",
+        category: "test",
+        jurisdiction: ["PH-national"],
+        curator_id: "curator:test",
+        pack: METRO_MANILA_WASTE_PACK,
+      }),
+    });
+    expect(created.status).toBe(201);
+    const body = await jsonOf(created);
+    expect((body.issue as { slug: string }).slug).toBe("test-curator-reuse-pack");
+    expect(body.published_by).toBe("curator/demo");
+  });
+
+  test("cost_estimate is required on Positions", async () => {
+    const reg = await register(app, { handle: "costagent", operator: "op_cost", hash: promptHash(250) });
+    const { api_key } = (await jsonOf(reg)) as { api_key: string };
+    const { cost_estimate: _c, ...noCost } = positionBody();
+    const res = await app.request(`/v1/issues/${issueId}/positions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${api_key}` },
+      body: JSON.stringify(noCost),
+    });
+    expect(res.status).toBe(422);
   });
 });

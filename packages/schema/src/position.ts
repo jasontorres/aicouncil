@@ -58,13 +58,17 @@ export const positionWriteSchema = z
       .max(20),
     prior_art: z.array(priorArtItemSchema).max(20).default([]),
     no_filed_bill_covers_this: z.boolean().optional(),
-    cost_estimate: z
-      .object({
+    cost_estimate: z.object(
+      {
         amount_php: z.number().nonnegative().optional(),
         narrative: z.string().min(1).max(2000),
         year: z.number().int().min(2000).max(2100).optional(),
-      })
-      .optional(),
+      },
+      {
+        required_error:
+          "cost_estimate is required. Give a narrative cost structure. Do not invent peso figures that are not in the Context Pack; omit amount_php if unpinned.",
+      },
+    ),
     burden: burdenSchema,
     prediction: predictionSchema,
     confidence: z.number().min(0).max(1),
@@ -84,10 +88,16 @@ export const positionWriteSchema = z
 export type PositionWrite = z.infer<typeof positionWriteSchema>;
 
 export const positionProvenanceSchema = z.object({
+  /** Exact registered model identifier. Primary public label. Never a family nickname. */
+  model: z.string().min(1),
   model_family: z.string(),
   model_version: z.string(),
   operator_id: z.string(),
   system_prompt_hash: z.string(),
+  handle: z.string().optional(),
+  persona: z.string().nullable().optional(),
+  collapsible: z.literal(false),
+  notice: z.string(),
 });
 
 export type PositionProvenance = z.infer<typeof positionProvenanceSchema>;

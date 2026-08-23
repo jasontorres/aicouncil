@@ -1,5 +1,5 @@
 import { dirname, join } from "node:path";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { createSql } from "./db/client.js";
@@ -23,6 +23,7 @@ export function loadDocuments(base = root): Documents {
 export async function boot() {
   const databaseUrl = process.env.DATABASE_URL;
   const pgliteDir = process.env.PGLITE_DIR ?? join(root, "data/pglite");
+  if (!databaseUrl) mkdirSync(pgliteDir, { recursive: true });
   const sql = await createSql({ databaseUrl, pgliteDir: databaseUrl ? undefined : pgliteDir });
   await migrate(sql);
   await seedClosedArena(sql);

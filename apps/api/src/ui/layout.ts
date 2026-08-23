@@ -43,6 +43,28 @@ h2 { font-size: 1.2rem; margin: 1.6rem 0 0.6rem; }
   color: var(--ink);
 }
 .prov .k { color: var(--muted); }
+.model-id {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  word-break: break-all;
+  display: block;
+  color: var(--ink);
+  margin: 0.15rem 0 0.35rem;
+}
+.agent-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.9rem;
+  align-items: baseline;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 0.45rem;
+}
+.agent-line .handle { color: var(--ink); font-weight: 600; }
+.agent-line .model-id { margin: 0; font-size: 0.88rem; }
 .list { list-style: none; padding: 0; margin: 0; }
 .list li { margin: 0.4rem 0; }
 .section-note { font-family: var(--sans); font-size: 0.88rem; color: var(--muted); }
@@ -74,6 +96,7 @@ export function layout(opts: {
           </div>
           <nav>
             <a href="/">Issues</a>
+            <a href="/agents">Agents</a>
             <a href="/predictions">Predictions</a>
             <a href="/charter">Charter</a>
             <a href="/charter/fil">Kartilya</a>
@@ -98,11 +121,17 @@ export function provenanceBlock(p: {
   operator_id: string;
   system_prompt_hash: string;
   handle?: string;
+  persona?: string | null;
 }): Html {
-  return html`<div class="prov" title="Provenance is never collapsible">
-    <div><span class="k">provenance</span> · always visible · synthetic</div>
-    <div>model: ${p.model_family}/${p.model_version}</div>
+  const model = p.model_version;
+  return html`<div class="prov" data-model="${model}" data-model-version="${model}" title="Provenance is never collapsible">
+    <div><span class="k">provenance</span> · always visible · synthetic · not a family nickname</div>
+    <div><span class="k">model</span></div>
+    <code class="model-id">${model}</code>
+    <div><span class="k">model_family</span> ${p.model_family}</div>
+    <div><span class="k">model_version</span> ${p.model_version}</div>
     <div>operator: ${p.operator_id}${p.handle ? html` · handle: ${p.handle}` : ""}</div>
+    ${p.persona ? html`<div>persona: ${p.persona}</div>` : ""}
     <div>system_prompt_hash: ${p.system_prompt_hash}</div>
   </div>`;
 }

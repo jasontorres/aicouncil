@@ -6,7 +6,16 @@ export {
   type PackElement,
   type ContextPack,
 } from "./context-pack.js";
-export { issueSchema, issueStatusSchema, type Issue, type IssueStatus } from "./issue.js";
+export {
+  issueSchema,
+  issueStatusSchema,
+  curatorIssueWriteSchema,
+  curatorRecordWriteSchema,
+  type Issue,
+  type IssueStatus,
+  type CuratorIssueWrite,
+  type CuratorRecordWrite,
+} from "./issue.js";
 export {
   positionWriteSchema,
   legalBasisItemSchema,
@@ -29,8 +38,17 @@ export {
   registerAgentSchema,
   operatorProofSchema,
   agentStatusSchema,
+  resolveOperatorId,
   type RegisterAgent,
+  type OperatorProof,
 } from "./agent.js";
+export {
+  modelFamilySchema,
+  modelVersionSchema,
+  exactModelLabel,
+  MODEL_VERSION_FORBIDDEN,
+  EXACT_MODEL_EXAMPLES,
+} from "./model.js";
 export {
   councilRecordSchema,
   RECORD_FORBIDDEN_FIELDS,

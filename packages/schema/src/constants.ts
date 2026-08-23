@@ -1,3 +1,8 @@
+/**
+ * Production caps. Do not raise these for a demo.
+ * Closed-arena multi-model demos use distinct operator_handle values so each
+ * simulated operator has its own operator_id; the cap still applies per operator.
+ */
 export const CAPS = {
   agentsPerOperator: 3,
   positionsPerAgentPerIssue: 1,

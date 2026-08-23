@@ -1,7 +1,8 @@
-import { RECORD_FORBIDDEN_FIELDS } from "@aicouncil/schema";
+import { RECORD_FORBIDDEN_FIELDS, type CuratorRecordWrite } from "@aicouncil/schema";
 import type { SqlClient } from "../db/types.js";
 import { llmError } from "../lib/errors.js";
 import { fenceUntrusted } from "../lib/envelope.js";
+import { newId } from "../lib/hash.js";
 import { loadIssue } from "./issues.js";
 
 export type RecordRow = {
@@ -47,10 +48,64 @@ export function recordsService(sql: SqlClient) {
       if (agentFacing) return fenceUntrusted(payload);
       return payload;
     },
+
+    async upsertFromCurator(body: Omit<CuratorRecordWrite, "invite_token">) {
+      const issue = await loadIssue(sql, body.issue_id);
+      const provenance = {
+        ...body.provenance,
+        model: body.provenance.model_version ?? null,
+      };
+      const existing = await sql.query<RecordRow>("SELECT * FROM council_records WHERE issue_id = $1", [issue.id]);
+      if (existing[0]) {
+        await sql.exec(
+          `UPDATE council_records SET
+             convergence = $1::jsonb, fractures = $2::jsonb, unresolved = $3::jsonb,
+             cheapest_test = $4::jsonb, dissent = $5::jsonb, provenance = $6::jsonb,
+             synthesis_mode = $7, updated_at = now()
+           WHERE issue_id = $8`,
+          [
+            JSON.stringify(body.convergence),
+            JSON.stringify(body.fractures),
+            JSON.stringify(body.unresolved),
+            JSON.stringify(body.cheapest_test),
+            JSON.stringify(body.dissent),
+            JSON.stringify(provenance),
+            body.provenance.synthesis_mode,
+            issue.id,
+          ],
+        );
+      } else {
+        await sql.exec(
+          `INSERT INTO council_records (
+             id, issue_id, convergence, fractures, unresolved, cheapest_test, dissent, provenance, synthesis_mode
+           ) VALUES ($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,$6::jsonb,$7::jsonb,$8::jsonb,$9)`,
+          [
+            newId(),
+            issue.id,
+            JSON.stringify(body.convergence),
+            JSON.stringify(body.fractures),
+            JSON.stringify(body.unresolved),
+            JSON.stringify(body.cheapest_test),
+            JSON.stringify(body.dissent),
+            JSON.stringify(provenance),
+            body.provenance.synthesis_mode,
+          ],
+        );
+      }
+      const rows = await sql.query<RecordRow>("SELECT * FROM council_records WHERE issue_id = $1", [issue.id]);
+      const payload = presentRecord(rows[0] as RecordRow);
+      assertNoRecommendation(payload);
+      return payload;
+    },
   };
 }
 
 export function presentRecord(row: RecordRow) {
+  const provenance = parseJson(row.provenance) as Record<string, unknown>;
+  const modelVersion =
+    typeof provenance.model_version === "string" && provenance.model_version.length > 0
+      ? provenance.model_version
+      : null;
   return {
     issue_id: row.issue_id,
     record_id: row.id,
@@ -59,7 +114,11 @@ export function presentRecord(row: RecordRow) {
     unresolved: parseJson(row.unresolved),
     cheapest_test: parseJson(row.cheapest_test),
     dissent: parseJson(row.dissent),
-    provenance: parseJson(row.provenance),
+    provenance: {
+      ...provenance,
+      model: modelVersion,
+      model_version: modelVersion,
+    },
     synthesis_mode: row.synthesis_mode,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -82,7 +141,7 @@ export function predictionsService(sql: SqlClient) {
     async list(issueId?: string) {
       const rows = issueId
         ? await sql.query<Record<string, unknown>>(
-            `SELECT pr.*, a.handle, i.slug
+            `SELECT pr.*, a.handle, a.model_family, a.model_version, i.slug
              FROM predictions pr
              JOIN agents a ON a.id = pr.agent_id
              JOIN issues i ON i.id = pr.issue_id
@@ -91,7 +150,7 @@ export function predictionsService(sql: SqlClient) {
             [issueId],
           )
         : await sql.query<Record<string, unknown>>(
-            `SELECT pr.*, a.handle, i.slug
+            `SELECT pr.*, a.handle, a.model_family, a.model_version, i.slug
              FROM predictions pr
              JOIN agents a ON a.id = pr.agent_id
              JOIN issues i ON i.id = pr.issue_id
@@ -105,6 +164,9 @@ export function predictionsService(sql: SqlClient) {
           issue_slug: r.slug,
           agent_id: r.agent_id,
           handle: r.handle,
+          model: r.model_version,
+          model_family: r.model_family,
+          model_version: r.model_version,
           claim: r.claim,
           horizon: r.horizon,
           metric: r.metric,
