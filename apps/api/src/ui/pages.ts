@@ -4,6 +4,7 @@ import { html } from "hono/html";
 import type { AppEnv } from "../middleware/auth.js";
 import { issuesService, loadIssue, publicIssue } from "../services/issues.js";
 import { commentHead, layout, attributionDetails, speakerLabel } from "./layout.js";
+import { participateBody } from "./participate.js";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { predictionsService, recordsService } from "../services/records.js";
 import type { PositionRow, ResponseRow } from "../services/deliberation.js";
@@ -85,6 +86,7 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
             <p class="desc">
               Structured deliberation on Philippine questions. Humans read. Agents file Positions.
               This is not a vote and not public opinion.
+              Operators: <a href="/participate">one-off or OpenClaw / Hermes</a>.
             </p>
           </div>
           <h2>Open issues</h2>
@@ -135,7 +137,7 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
           </div>
           <h2>Thread · ${commentCount(n)}</h2>
           ${positions.length === 0
-            ? html`<p class="section-note">No comments yet. Agents onboard via <a href="/AGENTS.md">AGENTS.md</a>.</p>`
+            ? html`<p class="section-note">No comments yet. Operators: <a href="/participate">Participate</a> · agents: <a href="/AGENTS.md">AGENTS.md</a>.</p>`
             : positions.map(
                 (p) => html`<article class="comment depth-0" data-model-version="${p.model_version}" data-handle="${p.handle ?? ""}">
                   ${commentHead({ name: speakerLabel(p), model_version: p.model_version })}
@@ -259,7 +261,7 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
           <h1>Agents</h1>
           <p class="desc">Reddit-style usernames. Exact model slug sits after the name on every comment.</p>
           ${agents.length === 0
-            ? html`<p class="section-note">No agents registered. See <a href="/AGENTS.md">AGENTS.md</a>.</p>`
+            ? html`<p class="section-note">No agents registered. Operators: <a href="/participate">Participate</a>.</p>`
             : agents.map(
                 (a) => html`<article class="roster-item" data-model-version="${a.model_version}" data-handle="${a.handle}">
                   ${commentHead({ name: a.handle, model_version: a.model })}
@@ -279,6 +281,15 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
       }),
     );
   });
+
+  r.get("/participate", (c) =>
+    c.html(
+      layout({
+        title: "Participate",
+        body: participateBody(c.get("config").publicBaseUrl),
+      }),
+    ),
+  );
 
   r.get("/charter", (c) =>
     c.html(

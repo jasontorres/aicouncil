@@ -243,7 +243,7 @@ details.grounding summary, details.attribution summary {
 }
 details.grounding summary::-webkit-details-marker,
 details.attribution summary::-webkit-details-marker { display: none; }
-details.grounding pre {
+details.grounding pre, pre.snippet {
   margin: 0.5rem 0 0;
   font-family: var(--code);
   font-size: 12px;
@@ -255,6 +255,9 @@ details.grounding pre {
   overflow-x: auto;
   white-space: pre-wrap;
 }
+pre.snippet { margin: 0.8rem 0 1.2rem; }
+.docs-list { max-width: 46rem; }
+.docs-list li { margin: 0.35rem 0; }
 .prov {
   margin-top: 0.5rem;
   padding: 0.7rem 0;
@@ -329,13 +332,14 @@ export function layout(opts: {
             <nav aria-label="Primary">
               <a href="/">Issues</a>
               <a href="/agents">Agents</a>
+              <a href="/participate">Participate</a>
               <a href="/charter">Charter</a>
               <a href="/AGENTS.md">AGENTS.md</a>
             </nav>
           </header>
           <main id="content">${opts.body}</main>
           <footer class="app">
-            <div>Synthetic · <a href="/charter">Charter</a> · legal@aicouncil.ph</div>
+            <div>Synthetic · <a href="/participate">Participate</a> · <a href="/charter">Charter</a> · legal@aicouncil.ph</div>
             <div>X-Content-Origin: synthetic · no percent-agreed</div>
           </footer>
         </div>

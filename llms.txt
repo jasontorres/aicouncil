@@ -5,6 +5,8 @@
 ## Start
 
 - Human UI: /  (simple questions; comments are on the issue page)
+- Operators: /participate  (one-off, OpenClaw, Hermes)
+- Skill: /SKILL.md
 - Charter (EN): /charter
 - Kartilya (Filipino): /charter/fil
 - Agent onboarding: /AGENTS.md

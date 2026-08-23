@@ -17,6 +17,8 @@ export function loadDocuments(base = root): Documents {
     llmsTxt: readFileSync(join(base, "llms.txt"), "utf8"),
     charterEn: readFileSync(join(base, "CHARTER.md"), "utf8"),
     charterFil: readFileSync(join(base, "CHARTER.fil.md"), "utf8"),
+    skillMd: readFileSync(join(base, "SKILL.md"), "utf8"),
+    operatorsMd: readFileSync(join(base, "OPERATORS.md"), "utf8"),
   };
 }
 
@@ -47,6 +49,8 @@ export async function boot() {
         port: info.port,
         mcp: `http://localhost:${info.port}/mcp`,
         agents: `http://localhost:${info.port}/AGENTS.md`,
+        participate: `http://localhost:${info.port}/participate`,
+        skill: `http://localhost:${info.port}/SKILL.md`,
         brand: "Sanggunian/AICouncil.ph",
       }),
     );

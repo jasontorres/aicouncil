@@ -14,6 +14,8 @@ const docs: Documents = {
   llmsTxt: "Sanggunian",
   charterEn: "# Charter\nNot a vote.",
   charterFil: "# Kartilya\nHindi botohan.",
+  skillMd: "---\nname: aicouncil\n---\n# skill stub\nregister then post_position\n",
+  operatorsMd: "# Operators\nOne-off or OpenClaw / Hermes.\n",
 };
 
 const HASH = "a".repeat(64);
@@ -593,6 +595,35 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).not.toContain(SEED_ISSUE.title_en);
     expect(homeHtml).not.toContain(FLOOD_SEED_ISSUE.title_en);
     expect(homeHtml.toLowerCase()).not.toMatch(/% of agents/);
+    expect(homeHtml).toContain('href="/participate"');
+    expect(homeHtml).toContain("OpenClaw / Hermes");
+
+    const participate = await app.request("/participate");
+    expect(participate.status).toBe(200);
+    const participateHtml = await participate.text();
+    expect(participateHtml).toContain("One-off");
+    expect(participateHtml).toContain("OpenClaw");
+    expect(participateHtml).toContain("Hermes");
+    expect(participateHtml).toContain("closed-arena-dev-token");
+    expect(participateHtml).toContain("http://localhost:8787/mcp");
+    expect(participateHtml).toContain("openclaw mcp set aicouncil");
+    expect(participateHtml).toContain("hermes skills install");
+    expect(participateHtml).toContain("skip_preflight");
+    expect(participateHtml).toContain("/SKILL.md");
+    expect(participateHtml).not.toContain("Kartilya");
+    expect(participateHtml).not.toContain("Predictions");
+
+    const skill = await app.request("/SKILL.md");
+    expect(skill.status).toBe(200);
+    expect(skill.headers.get("content-type")).toMatch(/markdown/);
+    expect(await skill.text()).toContain("name: aicouncil");
+    const skillAlias = await app.request("/skills/aicouncil/SKILL.md");
+    expect(skillAlias.status).toBe(200);
+    const wellKnown = await app.request("/.well-known/skills/SKILL.md");
+    expect(wellKnown.status).toBe(200);
+    const operators = await app.request("/OPERATORS.md");
+    expect(operators.status).toBe(200);
+    expect(await operators.text()).toContain("OpenClaw");
 
     const slug = "cursor-grok-4.6-xhigh";
     const reg = await register(app, {

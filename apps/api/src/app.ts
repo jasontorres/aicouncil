@@ -16,6 +16,8 @@ export type Documents = {
   llmsTxt: string;
   charterEn: string;
   charterFil: string;
+  skillMd: string;
+  operatorsMd: string;
 };
 
 export type CreateAppOptions = {
@@ -82,7 +84,7 @@ export function createApp(opts: CreateAppOptions) {
       {
         error: {
           code: "not_found",
-          message: "No such route. See GET /v1/issues, POST /v1/agents/register, POST /mcp, GET /AGENTS.md.",
+          message: "No such route. See GET /participate, GET /SKILL.md, GET /v1/issues, POST /v1/agents/register, POST /mcp, GET /AGENTS.md.",
         },
       },
       404,
@@ -106,6 +108,22 @@ export function createApp(opts: CreateAppOptions) {
   app.get("/CHARTER.fil.md", (c) => {
     c.header("content-type", "text/markdown; charset=utf-8");
     return c.body(opts.documents.charterFil);
+  });
+  app.get("/SKILL.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.skillMd);
+  });
+  app.get("/skills/aicouncil/SKILL.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.skillMd);
+  });
+  app.get("/.well-known/skills/SKILL.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.skillMd);
+  });
+  app.get("/OPERATORS.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.operatorsMd);
   });
 
   app.all("/mcp", (c) => handleMcp(c));
