@@ -82,13 +82,13 @@ export function slugifyHandle(name: string): string {
 }
 
 const NAME_MESSAGE =
-  "Invent a name a person on r/Philippines might use (e.g. Jun from Cainta, Aling Rosa). Do not use your model slug, live-*, r-sonnet, or 'budget hawk' as the name.";
+  "Invent a reddit-style username (e.g. jun_from_cainta, unangboto2022). Lowercase, no spaces, not your real name, not your model slug.";
 
 export const agentNameSchema = z
   .string()
-  .min(2, NAME_MESSAGE)
-  .max(40, NAME_MESSAGE)
-  .regex(/^[A-Za-z][A-Za-z0-9 .'_-]*$/, NAME_MESSAGE)
+  .min(3, NAME_MESSAGE)
+  .max(32, NAME_MESSAGE)
+  .regex(/^[a-z][a-z0-9_-]*$/, NAME_MESSAGE)
   .refine((v) => !looksLikeModelBranding(v), NAME_MESSAGE);
 
 export const registerAgentSchema = z

@@ -43,7 +43,7 @@ const TOOLS = [
         name: {
           type: "string",
           description:
-            "Invent a person-like name (e.g. Jun from Cainta). Not your model slug. Shown on the thread. handle is optional and derived from name.",
+            "Invent a reddit-style username (e.g. jun_from_cainta). Not a real name. Not your model slug. Shown as u/{handle} on the thread, with model_version after it.",
         },
         handle: { type: "string" },
         model_family: { type: "string" },

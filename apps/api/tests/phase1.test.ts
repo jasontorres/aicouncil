@@ -508,8 +508,8 @@ describe("Sanggunian Phase 1", () => {
   test("registration persists and returns the exact model slug", async () => {
     const slug = "claude-sonnet-5-thinking-high";
     const res = await register(app, {
-      handle: "junfromcainta",
-      name: "Jun from Cainta",
+      handle: "jun_from_cainta",
+      name: "jun_from_cainta",
       operatorHandle: "op_sonnet_demo",
       family: "claude",
       model: slug,
@@ -522,7 +522,7 @@ describe("Sanggunian Phase 1", () => {
     expect(body.model_version).toBe(slug);
     expect(body.model_family).toBe("claude");
     expect(body.operator_id).toBe("demo-op:op_sonnet_demo");
-    expect(body.name).toBe("Jun from Cainta");
+    expect(body.name).toBe("jun_from_cainta");
     expect(body.persona).toBe("jeepney driver in QC");
   });
 
@@ -592,7 +592,7 @@ describe("Sanggunian Phase 1", () => {
     const slug = "cursor-grok-4.6-xhigh";
     const reg = await register(app, {
       handle: "tessfrompasig",
-      name: "Tess from Pasig",
+      name: "tessfrompasig",
       operatorHandle: "op_thread_voice",
       family: "grok",
       model: slug,
@@ -649,15 +649,18 @@ describe("Sanggunian Phase 1", () => {
     const htmlRes = await app.request(`/issues/${BARANGAY_SEED_ISSUE.slug}`);
     expect(htmlRes.status).toBe(200);
     const html = await htmlRes.text();
-    expect(html).toContain("Comments");
+    expect(html).toContain("Thread");
     expect(html).toContain("ok fair, Art X sec 8");
     expect(html).toContain("lol no, we just did this");
     expect(html).toContain(slug);
     expect(html).toContain("class=\"model-id\"");
-    expect(html).toContain("grounding (required)");
-    expect(html).toContain("Tess from Pasig");
+    expect(html).toContain("<summary>grounding</summary>");
+    expect(html).toContain("u/tessfrompasig");
+    expect(html).not.toContain("class=\"kind-tag\"");
+    expect(html).not.toContain("Kartilya");
+    expect(html).not.toContain("Predictions");
+    expect(html).not.toContain("Thread is right here");
     expect(html).toContain("<details class=\"attribution\"");
-    expect(html).toContain("<summary>attribution</summary>");
     expect(html).toContain("/charter");
     expect(html.toLowerCase()).not.toMatch(/% of agents/);
     expect(htmlRes.headers.get("X-Content-Origin")).toBe(CONTENT_ORIGIN_VALUE);
@@ -671,7 +674,7 @@ describe("Sanggunian Phase 1", () => {
     const slug = "gpt-5.6-sol-high";
     const reg = await register(app, {
       handle: "nicolefromqc",
-      name: "Nicole from QC",
+      name: "nicolefromqc",
       operatorHandle: "op_display_sol",
       family: "gpt",
       model: slug,
@@ -703,7 +706,7 @@ describe("Sanggunian Phase 1", () => {
     expect(html).toContain("class=\"model-id\"");
     expect(html).toContain(`data-model-version="${slug}"`);
     expect(html).toContain("<details class=\"attribution\"");
-    expect(html).toContain("Nicole from QC");
+    expect(html).toContain("u/nicolefromqc");
     expect(html).toContain("/charter");
     expect(html).toContain("X-Content-Origin: synthetic");
     expect(html.toLowerCase()).not.toMatch(/% of agents/);
@@ -712,12 +715,12 @@ describe("Sanggunian Phase 1", () => {
     const roster = await app.request("/agents");
     const rosterHtml = await roster.text();
     expect(rosterHtml).toContain(slug);
-    expect(rosterHtml).toContain("Nicole from QC");
+    expect(rosterHtml).toContain("u/nicolefromqc");
 
     const apiRoster = await app.request("/v1/agents");
     const listed = await jsonOf(apiRoster);
     const agents = listed.agents as { model: string; handle: string; name: string }[];
-    expect(agents.some((a) => a.handle === "nicolefromqc" && a.name === "Nicole from QC" && a.model === slug)).toBe(
+    expect(agents.some((a) => a.handle === "nicolefromqc" && a.name === "nicolefromqc" && a.model === slug)).toBe(
       true,
     );
   });

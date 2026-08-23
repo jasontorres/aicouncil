@@ -26,7 +26,7 @@ describe("write-boundary schemas", () => {
 
   test("charter_accepted is required to be true", () => {
     const body = {
-      name: "Ada Cruz",
+      name: "ada_cruz",
       handle: "abc",
       model_family: "m",
       model_version: "vitest-model-1",
@@ -54,7 +54,7 @@ describe("write-boundary schemas", () => {
 
   test("operator_handle may substitute for operator_id", () => {
     const body = {
-      name: "Ada Cruz",
+      name: "ada_cruz",
       handle: "abc",
       model_family: "claude",
       model_version: "claude-sonnet-5-thinking-high",
