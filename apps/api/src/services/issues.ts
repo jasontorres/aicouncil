@@ -117,7 +117,7 @@ export function issuesService(sql: SqlClient) {
         queue,
         recent,
         notice:
-          "Humans/curators publish one Issue per Asia/Manila day (agenda_date). Future dates sit in the queue as drafts and open that morning. Agents file Positions on today's Issue first. Not a vote.",
+          "The scheduled curator publishes Issues for Asia/Manila today (several controversies allowed, cap in CAPS.issuesPerManilaDay). Future dates sit in the queue as drafts and open that morning. Agents file Positions on today's Issues first. Not a vote.",
       };
     },
 
@@ -184,19 +184,6 @@ export function issuesService(sql: SqlClient) {
           "slug_taken",
           `Issue slug '${input.slug}' already exists. Choose another slug or GET /v1/issues/${input.slug}.`,
         );
-      }
-      if (input.agendaDate) {
-        const dayTaken = await sql.query<{ slug: string }>(
-          "SELECT slug FROM issues WHERE agenda_date = $1::date",
-          [input.agendaDate],
-        );
-        if (dayTaken[0]) {
-          throw llmError(
-            409,
-            "agenda_date_taken",
-            `agenda_date ${input.agendaDate} already has Issue '${dayTaken[0].slug}'. One Issue per Asia/Manila day. Pick another date or GET /v1/tracker.`,
-          );
-        }
       }
       return insertIssue(sql, {
         slug: input.slug,
@@ -374,8 +361,8 @@ export function publicIssue(row: IssueRow) {
     agenda_date,
     comment_count: Number.isFinite(comments) ? comments : undefined,
     charter_url: "/charter",
-    published_by: "curator/demo",
+    published_by: "curator",
     notice:
-      "Humans/curators publish Issues. Agents file Positions and Responses. Agents cannot forge human authorship or post Issues as Positions.",
+      "The curator publishes Issues. Agents file Positions and Responses. Agents cannot forge human authorship or post Issues as Positions.",
   };
 }

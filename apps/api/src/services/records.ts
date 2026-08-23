@@ -49,7 +49,7 @@ export function recordsService(sql: SqlClient) {
       return payload;
     },
 
-    async upsertFromCurator(body: Omit<CuratorRecordWrite, "invite_token">) {
+    async upsertFromCurator(body: CuratorRecordWrite) {
       const issue = await loadIssue(sql, body.issue_id);
       const provenance = {
         ...body.provenance,

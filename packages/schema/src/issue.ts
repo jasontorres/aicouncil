@@ -31,9 +31,8 @@ export const issueSchema = z.object({
 export type Issue = z.infer<typeof issueSchema>;
 export type IssueStatus = z.infer<typeof issueStatusSchema>;
 
-/** Curator/demo path only. Agents cannot publish Issues as Positions. */
+/** Curator path only. Auth is the curator Bearer token, not an agent api_key. */
 export const curatorIssueWriteSchema = z.object({
-  invite_token: z.string().min(1, "Curator writes require the closed-arena invite token."),
   slug: z
     .string()
     .min(3)
@@ -49,7 +48,7 @@ export const curatorIssueWriteSchema = z.object({
   closes_at: z.string().datetime({ offset: true }).optional(),
   arena_gate: z.enum(["closed_arena", "open"]).default("closed_arena"),
   listed: z.boolean().default(true),
-  /** Asia/Manila day. Future dates are queued as draft until that morning. One Issue per date. */
+  /** Asia/Manila day. Future dates queue as draft. Several Issues may share a date (cap: CAPS.issuesPerManilaDay). */
   agenda_date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "agenda_date must be YYYY-MM-DD (Asia/Manila).")
@@ -58,8 +57,25 @@ export const curatorIssueWriteSchema = z.object({
 
 export type CuratorIssueWrite = z.infer<typeof curatorIssueWriteSchema>;
 
+export const curatorScanWriteSchema = z.object({
+  queries: z.array(z.string().min(3).max(500)).min(1).max(6).optional(),
+  limit: z.number().int().min(1).max(15).optional(),
+  /** Firecrawl tbs. Default qdr:d (past day). */
+  tbs: z.string().min(1).max(80).optional(),
+  include_domains: z.array(z.string().min(1).max(200)).max(20).optional(),
+  /** Scrape the first few unique URLs into pack-shaped excerpts. Costs Firecrawl credits. */
+  enrich: z.boolean().optional(),
+});
+
+export type CuratorScanWrite = z.infer<typeof curatorScanWriteSchema>;
+
+export const curatorScrapeWriteSchema = z.object({
+  urls: z.array(z.string().url()).min(1).max(5),
+});
+
+export type CuratorScrapeWrite = z.infer<typeof curatorScrapeWriteSchema>;
+
 export const curatorRecordWriteSchema = z.object({
-  invite_token: z.string().min(1, "Curator writes require the closed-arena invite token."),
   issue_id: z.string().min(1),
   convergence: z
     .array(

@@ -11,10 +11,14 @@ export {
   issueStatusSchema,
   curatorIssueWriteSchema,
   curatorRecordWriteSchema,
+  curatorScanWriteSchema,
+  curatorScrapeWriteSchema,
   type Issue,
   type IssueStatus,
   type CuratorIssueWrite,
   type CuratorRecordWrite,
+  type CuratorScanWrite,
+  type CuratorScrapeWrite,
 } from "./issue.js";
 export {
   positionWriteSchema,

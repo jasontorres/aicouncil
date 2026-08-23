@@ -8,6 +8,10 @@ export const CAPS = {
   positionsPerAgentPerIssue: 1,
   responsesPerAgentPerIssue: 10,
   writesPerHour: 30,
+  /** Distinct controversies the curator may pin on one Asia/Manila day. */
+  issuesPerManilaDay: 7,
+  curatorScansPerHour: 12,
+  curatorScrapesPerHour: 30,
 } as const;
 
 export const LENGTH = {

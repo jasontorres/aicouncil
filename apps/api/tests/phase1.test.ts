@@ -16,11 +16,13 @@ const docs: Documents = {
   charterFil: "# Kartilya\nHindi botohan.",
   skillMd: "---\nname: aicouncil\n---\n# skill stub\nregister then post_position\n",
   operatorsMd: "# Operators\nOne-off or OpenClaw / Hermes.\n",
-  curatorMd: "# Curators\nOne Issue per Manila day. agenda_date queues drafts.\n",
+  curatorMd: "# Curators\nagenda_date queues drafts. Several Issues per Manila day.\n",
+  curatorSkillMd: "# curator skill\nscan_news then publish_issue\n",
 };
 
 const HASH = "a".repeat(64);
 const INVITE = "closed-arena-dev-token";
+const CURATOR = "curator-dev-token";
 
 type App = ReturnType<typeof createApp>;
 
@@ -31,6 +33,7 @@ async function harness() {
   const app = createApp({
     sql,
     inviteToken: INVITE,
+    curatorApiKey: CURATOR,
     publicBaseUrl: "http://localhost:8787",
     dedupe: new MemoryDedupe(),
     documents: docs,
@@ -486,7 +489,7 @@ describe("Sanggunian Phase 1", () => {
     expect(issues.some((i) => i.slug === PAX_SEED_ISSUE.slug)).toBe(true);
     expect(issues.some((i) => i.slug === BARANGAY_SEED_ISSUE.slug)).toBe(true);
     expect(issues.some((i) => i.slug === FLOOD_SEED_ISSUE.slug)).toBe(false);
-    expect(issues.every((i) => i.published_by === "curator/demo")).toBe(true);
+    expect(issues.every((i) => i.published_by === "curator")).toBe(true);
     const brief = await app.request(`/v1/issues/${PAX_SEED_ISSUE.slug}/brief`);
     expect(brief.status).toBe(200);
     const packed = await jsonOf(brief);
@@ -773,7 +776,7 @@ describe("Sanggunian Phase 1", () => {
     );
   });
 
-  test("curator issue path requires invite token and is not an agent Position", async () => {
+  test("curator issue path requires curator key, not invite token or agent Position", async () => {
     const denied = await app.request("/v1/curator/issues", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -781,11 +784,25 @@ describe("Sanggunian Phase 1", () => {
     });
     expect(denied.status).toBe(401);
 
+    const inviteAsCurator = await app.request("/v1/curator/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${INVITE}` },
+      body: JSON.stringify({
+        slug: "invite-is-not-curator",
+        title_en: "Nope",
+        title_fil: "Hindi",
+        question: "Can the invite token publish Issues?",
+        category: "test",
+        jurisdiction: ["PH-national"],
+        pack: METRO_MANILA_WASTE_PACK,
+      }),
+    });
+    expect(inviteAsCurator.status).toBe(403);
+
     const created = await app.request("/v1/curator/issues", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
       body: JSON.stringify({
-        invite_token: INVITE,
         slug: "test-curator-reuse-pack",
         title_en: "Curator demo issue",
         title_fil: "Isyu ng demo ng curator",
@@ -799,15 +816,14 @@ describe("Sanggunian Phase 1", () => {
     expect(created.status).toBe(201);
     const body = await jsonOf(created);
     expect((body.issue as { slug: string }).slug).toBe("test-curator-reuse-pack");
-    expect(body.published_by).toBe("curator/demo");
+    expect(body.published_by).toBe("curator");
   });
 
-  test("daily tracker queues future agenda_date and opens today's slot", async () => {
+  test("daily tracker queues future agenda_date and allows several Issues on one day", async () => {
     const queued = await app.request("/v1/curator/issues", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
       body: JSON.stringify({
-        invite_token: INVITE,
         slug: "queued-future-issue",
         title_en: "Queued future Issue",
         title_fil: "Isyu sa hinaharap",
@@ -826,27 +842,27 @@ describe("Sanggunian Phase 1", () => {
     expect(issue.listed).toBe(false);
     expect(issue.agenda_date).toBe("2099-01-15");
 
-    const clash = await app.request("/v1/curator/issues", {
+    const second = await app.request("/v1/curator/issues", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
       body: JSON.stringify({
-        invite_token: INVITE,
-        slug: "clash-same-day",
-        title_en: "Clash",
-        title_fil: "Banggaan",
-        question: "Duplicate day?",
+        slug: "second-same-day",
+        title_en: "Second controversy that day",
+        title_fil: "Pangalawang isyu",
+        question: "Can two distinct controversies share a Manila day?",
         category: "test",
         jurisdiction: ["PH-national"],
         agenda_date: "2099-01-15",
         pack: METRO_MANILA_WASTE_PACK,
       }),
     });
-    expect(clash.status).toBe(409);
+    expect(second.status).toBe(201);
 
     const tracker = await jsonOf(await app.request("/v1/tracker"));
     expect(tracker.timezone).toBe("Asia/Manila");
     expect(typeof tracker.today).toBe("string");
     expect((tracker.queue as { slug: string }[]).some((i) => i.slug === "queued-future-issue")).toBe(true);
+    expect((tracker.queue as { slug: string }[]).some((i) => i.slug === "second-same-day")).toBe(true);
 
     const listed = await jsonOf(await app.request("/v1/issues"));
     expect((listed.issues as { slug: string }[]).some((i) => i.slug === "queued-future-issue")).toBe(false);
@@ -861,6 +877,9 @@ describe("Sanggunian Phase 1", () => {
     const curatorMd = await app.request("/CURATOR.md");
     expect(curatorMd.status).toBe(200);
     expect(await curatorMd.text()).toContain("agenda_date");
+    const skill = await app.request("/CURATOR.SKILL.md");
+    expect(skill.status).toBe(200);
+    expect(await skill.text()).toContain("scan_news");
   });
 
   test("cost_estimate is required on Positions", async () => {
