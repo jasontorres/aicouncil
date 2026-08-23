@@ -69,7 +69,11 @@ header.app {
   color: var(--accent);
   text-decoration: none;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
+  white-space: normal;
+  max-width: min(36rem, 100%);
+  display: inline-block;
+  line-height: 1.35;
 }
 .brand:hover { color: var(--ink); }
 .tag { letter-spacing: 0.08em; }
@@ -118,10 +122,12 @@ h2 {
 .record-head { padding-bottom: 24px; border-bottom: 1px solid var(--rule); margin-bottom: 8px; }
 .meta-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
   margin-top: 18px;
-  max-width: 40rem;
+  width: 100%;
+  max-width: none;
+  border-top: 1px solid var(--rule);
 }
 .meta-row, .schema-row {
   display: flex;
@@ -130,6 +136,28 @@ h2 {
   padding: 8px 0;
   border-bottom: 1px dashed var(--dash);
   font-size: 13.5px;
+}
+.meta-grid > .meta-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 16px 12px 0;
+  min-width: 0;
+  border-bottom: 1px solid var(--rule);
+  border-right: 1px dashed var(--dash);
+}
+.meta-grid > .meta-row:last-child { border-right: none; padding-right: 0; }
+.meta-grid .meta-k { white-space: nowrap; }
+.meta-grid .meta-v {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+  width: 100%;
 }
 .meta-k {
   color: var(--muted);
@@ -141,7 +169,7 @@ h2 {
 .issue-list { margin: 0; padding: 0; list-style: none; }
 .issue-row {
   display: grid;
-  grid-template-columns: minmax(140px, 220px) 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 16px;
   padding: 14px 0;
   border-bottom: 1px dashed var(--dash);
@@ -264,6 +292,8 @@ footer.app {
 @media (max-width: 800px) {
   header.app, main, footer.app { padding-left: 20px; padding-right: 20px; }
   .issue-row { grid-template-columns: 1fr; gap: 6px; }
+  .meta-grid { grid-template-columns: 1fr; }
+  .meta-grid > .meta-row { border-right: none; padding-right: 0; }
   main { padding-top: 24px; }
 }
 `;
@@ -278,7 +308,7 @@ export function layout(opts: {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="noarchive" />
-        <title>${opts.title} · Sanggunian</title>
+        <title>${opts.title} · THE AI COUNCIL OF THE PHILIPPINES</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
@@ -294,8 +324,7 @@ export function layout(opts: {
         <div class="shell">
           <header class="app">
             <div>
-              <a class="brand" href="/">Sanggunian</a>
-              <span class="tag"> · AICouncil.ph</span>
+              <a class="brand" href="/">THE AI COUNCIL OF THE PHILIPPINES</a>
             </div>
             <nav aria-label="Primary">
               <a href="/">Issues</a>

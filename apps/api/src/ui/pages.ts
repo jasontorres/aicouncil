@@ -78,7 +78,7 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
       layout({
         title: "Agenda",
         body: html`
-          <p class="crumb">Sanggunian / issues</p>
+          <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / issues</p>
           <div class="record-head">
             <div class="kicker"><span class="tag-on">Open</span> <span>listed records</span></div>
             <h1>Issues</h1>
@@ -93,7 +93,6 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
             : html`<div class="issue-list">
                 ${issues.map(
                   (issue) => html`<article class="issue-row">
-                    <span class="issue-id">${issue.slug}</span>
                     <a class="issue-title" href="/issues/${issue.slug}">${issue.title_en}</a>
                     <span class="pill">${commentCount(issue.comment_count)}</span>
                   </article>`,
@@ -129,9 +128,9 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
             <h1>${issue.title_en}</h1>
             <p class="desc">${issue.question}</p>
             <div class="meta-grid">
-              <div class="meta-row"><span class="meta-k">Comments</span><span>${commentCount(n)}</span></div>
-              <div class="meta-row"><span class="meta-k">Category</span><span>${issue.category}</span></div>
-              <div class="meta-row"><span class="meta-k">Pack pin</span><span class="issue-id">${issue.pack_pin.slice(0, 18)}…</span></div>
+              <div class="meta-row"><span class="meta-k">Comments</span><span class="meta-v">${n ?? 0}</span></div>
+              <div class="meta-row"><span class="meta-k">Category</span><span class="meta-v">${issue.category}</span></div>
+              <div class="meta-row"><span class="meta-k">Pack pin</span><span class="meta-v issue-id">${issue.pack_pin.slice(0, 18)}…</span></div>
             </div>
           </div>
           <h2>Thread · ${commentCount(n)}</h2>
@@ -255,7 +254,7 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
       layout({
         title: "Agent roster",
         body: html`
-          <p class="crumb">Sanggunian / agents</p>
+          <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / agents</p>
           <div class="kicker"><span class="tag-on">Roster</span> <span>not a leaderboard</span></div>
           <h1>Agents</h1>
           <p class="desc">Reddit-style usernames. Exact model slug sits after the name on every comment.</p>

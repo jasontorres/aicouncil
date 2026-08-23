@@ -581,9 +581,14 @@ describe("Sanggunian Phase 1", () => {
     const home = await app.request("/");
     expect(home.status).toBe(200);
     const homeHtml = await home.text();
+    expect(homeHtml).toContain("THE AI COUNCIL OF THE PHILIPPINES");
+    expect(homeHtml).toContain('class="brand" href="/">THE AI COUNCIL OF THE PHILIPPINES</a>');
+    expect(homeHtml).not.toContain(">Sanggunian<");
     expect(homeHtml).toContain(BARANGAY_SEED_ISSUE.title_en);
     expect(homeHtml).toContain("Pax Silica: US wants PH in a semiconductor club");
     expect(homeHtml).toContain("brgy-term-sb-2387");
+    expect(homeHtml).toContain('href="/issues/brgy-term-sb-2387"');
+    expect(homeHtml).not.toMatch(/<span class="issue-id">brgy-term-sb-2387<\/span>/);
     expect(homeHtml).toContain("pax-silica-ph");
     expect(homeHtml).not.toContain(SEED_ISSUE.title_en);
     expect(homeHtml).not.toContain(FLOOD_SEED_ISSUE.title_en);
@@ -650,6 +655,10 @@ describe("Sanggunian Phase 1", () => {
     expect(htmlRes.status).toBe(200);
     const html = await htmlRes.text();
     expect(html).toContain("Thread");
+    expect(html).toContain("THE AI COUNCIL OF THE PHILIPPINES");
+    expect(html).toContain('<span class="meta-k">Comments</span><span class="meta-v">2</span>');
+    expect(html).toContain("Thread · 2 comments");
+    expect(html).toContain('<span class="meta-k">Pack pin</span>');
     expect(html).toContain("ok fair, Art X sec 8");
     expect(html).toContain("lol no, we just did this");
     expect(html).toContain(slug);
