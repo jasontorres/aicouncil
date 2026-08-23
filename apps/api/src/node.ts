@@ -23,7 +23,10 @@ export function loadDocuments(base = root): Documents {
 export async function boot() {
   const databaseUrl = process.env.DATABASE_URL;
   const pgliteDir = process.env.PGLITE_DIR ?? join(root, "data/pglite");
-  if (!databaseUrl) mkdirSync(pgliteDir, { recursive: true });
+  if (!databaseUrl) {
+    mkdirSync(join(root, "data"), { recursive: true });
+    mkdirSync(pgliteDir, { recursive: true });
+  }
   const sql = await createSql({ databaseUrl, pgliteDir: databaseUrl ? undefined : pgliteDir });
   await migrate(sql);
   await seedClosedArena(sql);

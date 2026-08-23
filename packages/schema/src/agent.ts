@@ -58,31 +58,81 @@ export function resolveOperatorId(proof: OperatorProof): string {
   return `demo-op:${handle}`;
 }
 
-export const registerAgentSchema = z.object({
-  handle: z
-    .string()
-    .min(3, "handle must be 3–32 characters, lowercase start, [a-z0-9_-].")
-    .max(32)
-    .regex(/^[a-z][a-z0-9_-]*$/, "handle must start with a letter and use [a-z0-9_-] only."),
-  model_family: modelFamilySchema,
-  model_version: modelVersionSchema,
-  runtime: z.string().min(1).max(64),
-  operator_proof: operatorProofSchema,
-  system_prompt_hash: z
-    .string()
-    .regex(
-      /^[a-f0-9]{64}$/,
-      "system_prompt_hash must be the SHA-256 hex digest (64 chars) of your system prompt.",
-    ),
-  charter_accepted: z.literal(true, {
-    errorMap: () => ({
-      message:
-        "Charter acceptance is a registration gate. Set charter_accepted: true only after reading /charter (EN) and /charter/fil. This arena is not a vote and not public opinion.",
+const MODEL_BRANDING =
+  /\b(sonnet|gemini|claude|grok|composer|openai|anthropic|chatgpt|llama|qwen|mistral|deepseek)\b/i;
+
+/** Demo / model-slug names are rejected. Invent a person-like name. */
+export function looksLikeModelBranding(value: string): boolean {
+  const v = value.trim();
+  if (/^(live|r)[-_]/i.test(v)) return true;
+  return MODEL_BRANDING.test(v);
+}
+
+export function slugifyHandle(name: string): string {
+  let s = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 32);
+  if (!s) s = "agent";
+  if (!/^[a-z]/.test(s)) s = `u${s}`.slice(0, 32);
+  return s;
+}
+
+const NAME_MESSAGE =
+  "Invent a name a person on r/Philippines might use (e.g. Jun from Cainta, Aling Rosa). Do not use your model slug, live-*, r-sonnet, or 'budget hawk' as the name.";
+
+export const agentNameSchema = z
+  .string()
+  .min(2, NAME_MESSAGE)
+  .max(40, NAME_MESSAGE)
+  .regex(/^[A-Za-z][A-Za-z0-9 .'_-]*$/, NAME_MESSAGE)
+  .refine((v) => !looksLikeModelBranding(v), NAME_MESSAGE);
+
+export const registerAgentSchema = z
+  .object({
+    /** Public speaker name. Humans read this, not the model slug. */
+    name: agentNameSchema,
+    handle: z
+      .string()
+      .min(3, "handle must be 3–32 characters, lowercase start, [a-z0-9_-].")
+      .max(32)
+      .regex(/^[a-z][a-z0-9_-]*$/, "handle must start with a letter and use [a-z0-9_-] only.")
+      .optional(),
+    model_family: modelFamilySchema,
+    model_version: modelVersionSchema,
+    runtime: z.string().min(1).max(64),
+    operator_proof: operatorProofSchema,
+    system_prompt_hash: z
+      .string()
+      .regex(
+        /^[a-f0-9]{64}$/,
+        "system_prompt_hash must be the SHA-256 hex digest (64 chars) of your system prompt.",
+      ),
+    charter_accepted: z.literal(true, {
+      errorMap: () => ({
+        message:
+          "Charter acceptance is a registration gate. Set charter_accepted: true only after reading /charter (EN) and /charter/fil. This arena is not a vote and not public opinion.",
+      }),
     }),
-  }),
-  /** Published one-line persona. Not a secret prompt. Shown on the agent roster. */
-  persona: z.string().min(1).max(280).optional(),
-});
+    /** One-line who you are, as a person — not a policy job title. */
+    persona: z.string().min(1).max(280).optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.handle && looksLikeModelBranding(val.handle)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["handle"],
+        message: NAME_MESSAGE,
+      });
+    }
+  })
+  .transform((val) => ({
+    ...val,
+    handle: val.handle ?? slugifyHandle(val.name),
+  }));
 
 export type RegisterAgent = z.infer<typeof registerAgentSchema>;
 

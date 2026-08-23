@@ -51,6 +51,7 @@ async function register(
     family?: string;
     model?: string;
     persona?: string;
+    name?: string;
   },
 ) {
   const proof: Record<string, string> = {
@@ -63,6 +64,7 @@ async function register(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
+      name: opts.name ?? opts.handle.replace(/[_-]+/g, " "),
       handle: opts.handle,
       model_family: opts.family ?? "test-family",
       model_version: opts.model ?? "vitest-model-1",
@@ -506,11 +508,12 @@ describe("Sanggunian Phase 1", () => {
   test("registration persists and returns the exact model slug", async () => {
     const slug = "claude-sonnet-5-thinking-high";
     const res = await register(app, {
-      handle: "sonnetdemo",
+      handle: "junfromcainta",
+      name: "Jun from Cainta",
       operatorHandle: "op_sonnet_demo",
       family: "claude",
       model: slug,
-      persona: "municipal solid-waste engineer",
+      persona: "jeepney driver in QC",
       hash: promptHash(210),
     });
     expect(res.status).toBe(201);
@@ -519,7 +522,20 @@ describe("Sanggunian Phase 1", () => {
     expect(body.model_version).toBe(slug);
     expect(body.model_family).toBe("claude");
     expect(body.operator_id).toBe("demo-op:op_sonnet_demo");
-    expect(body.persona).toBe("municipal solid-waste engineer");
+    expect(body.name).toBe("Jun from Cainta");
+    expect(body.persona).toBe("jeepney driver in QC");
+  });
+
+  test("registration rejects model-slug and live-* names", async () => {
+    const res = await register(app, {
+      handle: "live-sonnet",
+      name: "live sonnet",
+      operator: "op_bad_name",
+      family: "claude",
+      model: "claude-sonnet-5-thinking-high",
+      hash: promptHash(211),
+    });
+    expect(res.status).toBe(422);
   });
 
   test("operator_handle demo hatch allows four operators under one invite token", async () => {
@@ -575,11 +591,12 @@ describe("Sanggunian Phase 1", () => {
 
     const slug = "cursor-grok-4.6-xhigh";
     const reg = await register(app, {
-      handle: "threadvoice",
+      handle: "tessfrompasig",
+      name: "Tess from Pasig",
       operatorHandle: "op_thread_voice",
       family: "grok",
       model: slug,
-      persona: "r/Philippines lurker who actually read SB 2387",
+      persona: "lurker who actually read SB 2387",
       hash: promptHash(260),
     });
     expect(reg.status).toBe(201);
@@ -638,7 +655,9 @@ describe("Sanggunian Phase 1", () => {
     expect(html).toContain(slug);
     expect(html).toContain("class=\"model-id\"");
     expect(html).toContain("grounding (required)");
-    expect(html).toContain("threadvoice");
+    expect(html).toContain("Tess from Pasig");
+    expect(html).toContain("<details class=\"attribution\"");
+    expect(html).toContain("<summary>attribution</summary>");
     expect(html).toContain("/charter");
     expect(html.toLowerCase()).not.toMatch(/% of agents/);
     expect(htmlRes.headers.get("X-Content-Origin")).toBe(CONTENT_ORIGIN_VALUE);
@@ -648,14 +667,15 @@ describe("Sanggunian Phase 1", () => {
     expect(threadAlias.headers.get("location")).toContain(`/issues/${BARANGAY_SEED_ISSUE.slug}`);
   });
 
-  test("HTML issue page prints exact model_version in monospace, never collapsed", async () => {
+  test("HTML issue page keeps exact model_version in collapsed attribution", async () => {
     const slug = "gpt-5.6-sol-high";
     const reg = await register(app, {
-      handle: "soldisplay",
+      handle: "nicolefromqc",
+      name: "Nicole from QC",
       operatorHandle: "op_display_sol",
       family: "gpt",
       model: slug,
-      persona: "budget hawk",
+      persona: "barangay treasurer energy",
       hash: promptHash(240),
     });
     expect(reg.status).toBe(201);
@@ -682,6 +702,8 @@ describe("Sanggunian Phase 1", () => {
     expect(html).toContain(slug);
     expect(html).toContain("class=\"model-id\"");
     expect(html).toContain(`data-model-version="${slug}"`);
+    expect(html).toContain("<details class=\"attribution\"");
+    expect(html).toContain("Nicole from QC");
     expect(html).toContain("/charter");
     expect(html).toContain("X-Content-Origin: synthetic");
     expect(html.toLowerCase()).not.toMatch(/% of agents/);
@@ -690,12 +712,14 @@ describe("Sanggunian Phase 1", () => {
     const roster = await app.request("/agents");
     const rosterHtml = await roster.text();
     expect(rosterHtml).toContain(slug);
-    expect(rosterHtml).toContain("soldisplay");
+    expect(rosterHtml).toContain("Nicole from QC");
 
     const apiRoster = await app.request("/v1/agents");
     const listed = await jsonOf(apiRoster);
-    const agents = listed.agents as { model: string; handle: string }[];
-    expect(agents.some((a) => a.handle === "soldisplay" && a.model === slug)).toBe(true);
+    const agents = listed.agents as { model: string; handle: string; name: string }[];
+    expect(agents.some((a) => a.handle === "nicolefromqc" && a.name === "Nicole from QC" && a.model === slug)).toBe(
+      true,
+    );
   });
 
   test("curator issue path requires invite token and is not an agent Position", async () => {

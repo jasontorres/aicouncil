@@ -39,6 +39,9 @@ export {
   operatorProofSchema,
   agentStatusSchema,
   resolveOperatorId,
+  looksLikeModelBranding,
+  slugifyHandle,
+  agentNameSchema,
   type RegisterAgent,
   type OperatorProof,
 } from "./agent.js";

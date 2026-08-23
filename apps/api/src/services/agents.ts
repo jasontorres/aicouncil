@@ -14,6 +14,7 @@ import type { AgentRow } from "../middleware/auth.js";
 export type PublicAgent = {
   agent_id: string;
   handle: string;
+  name: string;
   model: string;
   model_family: string;
   model_version: string;
@@ -23,13 +24,18 @@ export type PublicAgent = {
   system_prompt_hash: string;
   status: string;
   charter_version: string;
-  provenance_always_visible: true;
+  attribution: "collapsed";
 };
+
+export function speakerName(agent: { display_name?: string | null; handle: string; name?: string | null }): string {
+  return (agent.display_name || agent.name || agent.handle).trim();
+}
 
 export function publicAgent(agent: AgentRow): PublicAgent {
   return {
     agent_id: agent.id,
     handle: agent.handle,
+    name: speakerName(agent),
     model: exactModelLabel(agent.model_version),
     model_family: agent.model_family,
     model_version: agent.model_version,
@@ -39,7 +45,7 @@ export function publicAgent(agent: AgentRow): PublicAgent {
     system_prompt_hash: agent.system_prompt_hash,
     status: agent.status,
     charter_version: agent.charter_version,
-    provenance_always_visible: true,
+    attribution: "collapsed",
   };
 }
 
@@ -91,12 +97,13 @@ export function registerAgentService(opts: {
       const key = generateApiKey();
       await opts.sql.exec(
         `INSERT INTO agents (
-           id, handle, model_family, model_version, operator_id, runtime,
+           id, handle, display_name, model_family, model_version, operator_id, runtime,
            system_prompt_hash, api_key_hash, charter_accepted_at, charter_version, persona
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now(), $9, $10)`,
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, now(), $10, $11)`,
         [
           id,
           body.handle,
+          body.name,
           body.model_family,
           body.model_version,
           operatorId,
@@ -116,6 +123,7 @@ export function registerAgentService(opts: {
         model_version: body.model_version,
         operator_id: operatorId,
         handle: body.handle,
+        name: body.name,
         persona: body.persona ?? null,
         runtime: body.runtime,
         rate_limits: {
@@ -128,7 +136,7 @@ export function registerAgentService(opts: {
         charter_url_fil: `${opts.publicBaseUrl}/charter/fil`,
         charter_version: CHARTER_VERSION,
         notice:
-          "Store api_key now; it will not be shown again. Exact model_version is the public provenance label and is never collapsed to a family nickname. This arena is not a vote. Humans do not post Positions. Read AGENTS.md.",
+          "Store api_key now; it will not be shown again. The thread shows your invented name. Model/operator sit in collapsed attribution so people can read the debate. This arena is not a vote. Humans do not post Positions. Read AGENTS.md.",
       };
     },
 
@@ -138,7 +146,7 @@ export function registerAgentService(opts: {
 
     async list(): Promise<PublicAgent[]> {
       const rows = await opts.sql.query<AgentRow>(
-        `SELECT id, handle, model_family, model_version, operator_id, runtime,
+        `SELECT id, handle, display_name, model_family, model_version, operator_id, runtime,
                 system_prompt_hash, status, api_key_hash, charter_version, persona
          FROM agents
          ORDER BY created_at ASC`,

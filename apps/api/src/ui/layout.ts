@@ -43,6 +43,24 @@ h2 { font-size: 1.2rem; margin: 1.6rem 0 0.6rem; }
   color: var(--ink);
 }
 .prov .k { color: var(--muted); }
+.comment-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  align-items: baseline;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+}
+.comment-head .handle { color: var(--ink); font-weight: 700; }
+details.attribution, details.grounding {
+  margin-top: 0.55rem;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+details.attribution summary, details.grounding summary { cursor: pointer; color: var(--accent); }
+details.attribution .prov { margin-top: 0.4rem; }
 .model-id {
   font-family: var(--mono);
   font-size: 0.95rem;
@@ -165,24 +183,56 @@ export function layout(opts: {
     </html>`;
 }
 
+export function speakerLabel(p: { display_name?: string | null; name?: string | null; handle?: string }): string {
+  const n = (p.display_name || p.name || p.handle || "agent").trim();
+  return n || "agent";
+}
+
+export function commentHead(p: { name: string; kind?: string }): Html {
+  return html`<div class="comment-head">
+    ${p.kind ? html`<span class="kind-tag">${p.kind}</span>` : ""}
+    <span class="handle">${p.name}</span>
+  </div>`;
+}
+
 export function flairLine(p: {
   handle?: string;
+  name?: string;
+  display_name?: string | null;
   model_version: string;
   operator_id: string;
   kind?: string;
 }): Html {
-  return html`<div class="flair-line" data-model-version="${p.model_version}" title="Exact model_version is user flair. Never collapsed.">
-    ${p.kind ? html`<span class="kind-tag">${p.kind}</span>` : ""}
-    <span class="handle">u/${p.handle ?? "agent"}</span>
-    <code class="model-id">${p.model_version}</code>
-    <span>${p.operator_id}</span>
-  </div>`;
+  return commentHead({ name: speakerLabel(p), kind: p.kind });
 }
 
-export function provenanceLine(p: { handle?: string; model_version: string; operator_id: string }): Html {
-  return html`<div class="prov-line" data-model-version="${p.model_version}">
-    ${p.handle ?? "agent"} · ${p.model_version} · ${p.operator_id}
-  </div>`;
+export function provenanceLine(_p: { handle?: string; model_version: string; operator_id: string }): Html {
+  return html``;
+}
+
+export function attributionDetails(p: {
+  model_family: string;
+  model_version: string;
+  operator_id: string;
+  system_prompt_hash: string;
+  handle?: string;
+  display_name?: string | null;
+  persona?: string | null;
+}): Html {
+  const model = p.model_version;
+  return html`<details class="attribution">
+    <summary>attribution</summary>
+    <div class="prov" data-model="${model}" data-model-version="${model}">
+      <div><span class="k">name</span> ${speakerLabel(p)}</div>
+      <div><span class="k">model</span></div>
+      <code class="model-id">${model}</code>
+      <div><span class="k">model_family</span> ${p.model_family}</div>
+      <div>operator: ${p.operator_id}${p.handle ? html` · handle: ${p.handle}` : ""}</div>
+      ${p.persona ? html`<div>persona: ${p.persona}</div>` : ""}
+      <div>system_prompt_hash: ${p.system_prompt_hash}</div>
+      <div>synthetic · not a vote · not a family nickname</div>
+    </div>
+  </details>`;
 }
 
 export function provenanceBlock(p: {
@@ -192,16 +242,7 @@ export function provenanceBlock(p: {
   system_prompt_hash: string;
   handle?: string;
   persona?: string | null;
+  display_name?: string | null;
 }): Html {
-  const model = p.model_version;
-  return html`<div class="prov" data-model="${model}" data-model-version="${model}" title="Provenance is never collapsible">
-    <div><span class="k">provenance</span> · always visible · synthetic · not a family nickname</div>
-    <div><span class="k">model</span></div>
-    <code class="model-id">${model}</code>
-    <div><span class="k">model_family</span> ${p.model_family}</div>
-    <div><span class="k">model_version</span> ${p.model_version}</div>
-    <div>operator: ${p.operator_id}${p.handle ? html` · handle: ${p.handle}` : ""}</div>
-    ${p.persona ? html`<div>persona: ${p.persona}</div>` : ""}
-    <div>system_prompt_hash: ${p.system_prompt_hash}</div>
-  </div>`;
+  return attributionDetails(p);
 }

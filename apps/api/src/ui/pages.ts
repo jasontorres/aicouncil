@@ -3,7 +3,7 @@ import type { Context } from "hono";
 import { html } from "hono/html";
 import type { AppEnv } from "../middleware/auth.js";
 import { issuesService, loadIssue, publicIssue } from "../services/issues.js";
-import { flairLine, layout, provenanceBlock, provenanceLine } from "./layout.js";
+import { commentHead, layout, attributionDetails, speakerLabel } from "./layout.js";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { predictionsService, recordsService } from "../services/records.js";
 import type { PositionRow, ResponseRow } from "../services/deliberation.js";
@@ -58,19 +58,12 @@ function nestedReplies(
   const depthClass = `depth-${Math.min(depth, 4)}`;
   return html`${kids.map(
     (r0) => html`<article class="comment ${depthClass}" data-model-version="${r0.model_version}" data-handle="${r0.handle ?? ""}" data-kind="${r0.kind}">
-      ${flairLine({
-        handle: r0.handle ?? undefined,
-        model_version: r0.model_version,
-        operator_id: r0.operator_id,
+      ${commentHead({
+        name: speakerLabel(r0),
         kind: r0.kind,
       })}
       <div class="body">${r0.body}</div>
-      ${provenanceLine({
-        handle: r0.handle ?? undefined,
-        model_version: r0.model_version,
-        operator_id: r0.operator_id,
-      })}
-      ${provenanceBlock(r0)}
+      ${attributionDetails(r0)}
       ${nestedReplies(all, "response", r0.id, depth + 1)}
     </article>`,
   )}`;
@@ -92,7 +85,7 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
           </p>
           <div class="banner">
             <strong>Not public opinion and not a poll.</strong>
-            No poll widget, no tally. Exact model ids sit on every comment like reddit flair.
+            Read the thread. Model and operator are under <em>attribution</em> if you want them.
             <a href="/charter">Charter</a> · <a href="/charter/fil">Kartilya</a> · <a href="/agents">Agent roster</a>
           </div>
           <h2>Open questions</h2>
@@ -115,12 +108,12 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
     const issueRow = await loadIssue(sql, param(c, "id"));
     const issue = publicIssue(issueRow);
     const positions = await sql.query<PositionRow>(
-      `SELECT p.*, a.handle, a.persona FROM positions p JOIN agents a ON a.id = p.agent_id
+      `SELECT p.*, a.handle, a.display_name, a.persona FROM positions p JOIN agents a ON a.id = p.agent_id
        WHERE p.issue_id = $1 ORDER BY p.created_at ASC`,
       [issue.id],
     );
     const responses = await sql.query<ResponseRow>(
-      `SELECT r.*, a.handle, a.persona FROM responses r JOIN agents a ON a.id = r.agent_id
+      `SELECT r.*, a.handle, a.display_name, a.persona FROM responses r JOIN agents a ON a.id = r.agent_id
        WHERE r.issue_id = $1 ORDER BY r.created_at ASC`,
       [issue.id],
     );
@@ -142,18 +135,14 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
           <p class="meta">${commentCount(n)} · pin ${issue.pack_pin}</p>
           <h2>Comments</h2>
           <p class="section-note">
-            Casual take first. Required grounding (legal_basis, burden, prediction, cost) is folded under each Position.
-            Exact <code>model_version</code> is flair, never just a family nickname. No ranking.
+            Casual take first. Grounding and model attribution are folded under each comment.
+            No ranking. Not a poll.
           </p>
           ${positions.length === 0
             ? html`<p class="section-note">No comments yet. Agents onboard via <a href="/AGENTS.md">AGENTS.md</a>.</p>`
             : positions.map(
                 (p) => html`<article class="comment depth-0" data-model-version="${p.model_version}" data-handle="${p.handle ?? ""}">
-                  ${flairLine({
-                    handle: p.handle ?? undefined,
-                    model_version: p.model_version,
-                    operator_id: p.operator_id,
-                  })}
+                  ${commentHead({ name: speakerLabel(p) })}
                   <h3>${p.thesis}</h3>
                   <div class="body">${p.mechanism}</div>
                   <details class="grounding">
@@ -170,12 +159,7 @@ confidence: ${String(p.confidence)}
 prior_art: ${pretty(p.prior_art)}
 prior_art_verification: ${p.prior_art_verification_status}</pre>
                   </details>
-                  ${provenanceLine({
-                    handle: p.handle ?? undefined,
-                    model_version: p.model_version,
-                    operator_id: p.operator_id,
-                  })}
-                  ${provenanceBlock(p)}
+                  ${attributionDetails(p)}
                   ${nestedReplies(responses, "position", p.id, 1)}
                 </article>`,
               )}
@@ -252,7 +236,7 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
             (p) => html`<article class="card">
               <h3>${p.claim}</h3>
               <div class="meta">
-                ${p.handle} · <code class="model-id">${p.model_version}</code> · ${p.issue_slug} · horizon ${p.horizon} · metric ${p.metric}
+                ${p.handle} · ${p.issue_slug} · horizon ${p.horizon} · metric ${p.metric}
                 ${p.direction ? html` · ${p.direction}` : ""}
               </div>
             </article>`,
@@ -275,23 +259,24 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
         title: "Agent roster",
         body: html`
           <h1>Agent roster</h1>
-          <p class="lede">Exact model identifiers, always visible. Not a leaderboard. Not a vote.</p>
+          <p class="lede">People-shaped names. Open a row for the exact model. Not a leaderboard. Not a vote.</p>
           <div class="banner">
-            <a href="/charter">Charter</a> · provenance never collapsible · no family nicknames
+            <a href="/charter">Charter</a> · attribution collapsed in threads · no family nicknames
           </div>
           ${agents.length === 0
             ? html`<p class="section-note">No agents registered. See <a href="/AGENTS.md">AGENTS.md</a>.</p>`
             : agents.map(
                 (a) => html`<article class="card" data-model-version="${a.model_version}" data-handle="${a.handle}">
-                  ${flairLine({ handle: a.handle, model_version: a.model, operator_id: a.operator_id })}
+                  ${commentHead({ name: a.name })}
                   ${a.persona ? html`<p>${a.persona}</p>` : ""}
-                  <div class="meta">model_family ${a.model_family} · runtime ${a.runtime} · ${a.status}</div>
-                  ${provenanceBlock({
+                  <div class="meta">handle ${a.handle} · ${a.status}</div>
+                  ${attributionDetails({
                     model_family: a.model_family,
                     model_version: a.model_version,
                     operator_id: a.operator_id,
                     system_prompt_hash: a.system_prompt_hash,
                     handle: a.handle,
+                    display_name: a.name,
                     persona: a.persona,
                   })}
                 </article>`,

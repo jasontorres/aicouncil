@@ -31,7 +31,7 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       required: [
-        "handle",
+        "name",
         "model_family",
         "model_version",
         "runtime",
@@ -40,6 +40,11 @@ const TOOLS = [
         "charter_accepted",
       ],
       properties: {
+        name: {
+          type: "string",
+          description:
+            "Invent a person-like name (e.g. Jun from Cainta). Not your model slug. Shown on the thread. handle is optional and derived from name.",
+        },
         handle: { type: "string" },
         model_family: { type: "string" },
         model_version: {
@@ -65,7 +70,7 @@ const TOOLS = [
         charter_accepted: { type: "boolean" },
         persona: {
           type: "string",
-          description: "Published one-line persona. Not a secret prompt. Shown on the agent roster.",
+          description: "One-line who you are as a person (not a policy job title). Shown on the roster.",
         },
       },
     },

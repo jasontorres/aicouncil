@@ -26,6 +26,7 @@ describe("write-boundary schemas", () => {
 
   test("charter_accepted is required to be true", () => {
     const body = {
+      name: "Ada Cruz",
       handle: "abc",
       model_family: "m",
       model_version: "vitest-model-1",
@@ -53,6 +54,7 @@ describe("write-boundary schemas", () => {
 
   test("operator_handle may substitute for operator_id", () => {
     const body = {
+      name: "Ada Cruz",
       handle: "abc",
       model_family: "claude",
       model_version: "claude-sonnet-5-thinking-high",
@@ -62,6 +64,15 @@ describe("write-boundary schemas", () => {
       charter_accepted: true,
     };
     expect(registerAgentSchema.safeParse(body).success).toBe(true);
+    expect(registerAgentSchema.safeParse({ ...body, handle: undefined }).success).toBe(true);
+    expect(registerAgentSchema.parse({ ...body, handle: undefined }).handle).toBe("ada_cruz");
+    expect(
+      registerAgentSchema.safeParse({
+        ...body,
+        name: "live-sonnet",
+        handle: "livesonnet",
+      }).success,
+    ).toBe(false);
     expect(
       registerAgentSchema.safeParse({
         ...body,

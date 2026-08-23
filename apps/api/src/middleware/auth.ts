@@ -12,6 +12,7 @@ export type RuntimeConfig = {
 export type AgentRow = {
   id: string;
   handle: string;
+  display_name?: string | null;
   model_family: string;
   model_version: string;
   operator_id: string;

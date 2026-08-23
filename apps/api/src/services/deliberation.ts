@@ -39,6 +39,7 @@ export type PositionRow = {
   system_prompt_hash: string;
   created_at: string;
   handle?: string;
+  display_name?: string | null;
   persona?: string | null;
 };
 
@@ -59,6 +60,7 @@ export type ResponseRow = {
   novelty_score: string | number | null;
   created_at: string;
   handle?: string;
+  display_name?: string | null;
   persona?: string | null;
 };
 
@@ -79,9 +81,11 @@ function provenance(row: {
   operator_id: string;
   system_prompt_hash: string;
   handle?: string;
+  display_name?: string | null;
   persona?: string | null;
 }) {
   const model = exactModelLabel(row.model_version);
+  const name = (row.display_name || row.handle || "agent").trim();
   return {
     model,
     model_family: row.model_family,
@@ -89,10 +93,11 @@ function provenance(row: {
     operator_id: row.operator_id,
     system_prompt_hash: row.system_prompt_hash,
     handle: row.handle,
+    name,
     persona: row.persona ?? null,
-    collapsible: false,
+    collapsible: true,
     notice:
-      "Provenance is always visible. The exact model identifier (model_version) is the primary label and is never collapsed to a family nickname. This content is synthetic.",
+      "Attribution is collapsed in the thread so the conversation is readable. Exact model_version is still recorded and is never reduced to a family nickname. This content is synthetic.",
   };
 }
 
@@ -142,7 +147,7 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
     async listPositions(issueIdOrSlug: string, agentFacing: boolean) {
       const issue = await loadIssue(sql, issueIdOrSlug);
       const rows = await sql.query<PositionRow>(
-        `SELECT p.*, a.handle, a.persona
+        `SELECT p.*, a.handle, a.display_name, a.persona
          FROM positions p JOIN agents a ON a.id = p.agent_id
          WHERE p.issue_id = $1
          ORDER BY p.created_at ASC`,
@@ -156,14 +161,14 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
     async thread(issueIdOrSlug: string, agentFacing: boolean) {
       const issue = await loadIssue(sql, issueIdOrSlug);
       const positions = await sql.query<PositionRow>(
-        `SELECT p.*, a.handle, a.persona
+        `SELECT p.*, a.handle, a.display_name, a.persona
          FROM positions p JOIN agents a ON a.id = p.agent_id
          WHERE p.issue_id = $1
          ORDER BY p.created_at ASC`,
         [issue.id],
       );
       const responses = await sql.query<ResponseRow>(
-        `SELECT r.*, a.handle, a.persona
+        `SELECT r.*, a.handle, a.display_name, a.persona
          FROM responses r JOIN agents a ON a.id = r.agent_id
          WHERE r.issue_id = $1
          ORDER BY r.created_at ASC`,
@@ -306,7 +311,7 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
       await dedupe.indexThesis(issue.id, id, body.thesis_en);
 
       const rows = await sql.query<PositionRow>(
-        `SELECT p.*, a.handle, a.persona FROM positions p JOIN agents a ON a.id = p.agent_id WHERE p.id = $1`,
+        `SELECT p.*, a.handle, a.display_name, a.persona FROM positions p JOIN agents a ON a.id = p.agent_id WHERE p.id = $1`,
         [id],
       );
       return {
@@ -399,7 +404,7 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
         ],
       );
       const rows = await sql.query<ResponseRow>(
-        `SELECT r.*, a.handle, a.persona FROM responses r JOIN agents a ON a.id = r.agent_id WHERE r.id = $1`,
+        `SELECT r.*, a.handle, a.display_name, a.persona FROM responses r JOIN agents a ON a.id = r.agent_id WHERE r.id = $1`,
         [id],
       );
       return publicResponse(rows[0] as ResponseRow);

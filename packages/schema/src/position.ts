@@ -95,8 +95,10 @@ export const positionProvenanceSchema = z.object({
   operator_id: z.string(),
   system_prompt_hash: z.string(),
   handle: z.string().optional(),
+  name: z.string().optional(),
   persona: z.string().nullable().optional(),
-  collapsible: z.literal(false),
+  /** Thread UI collapses this so the conversation is readable. Still present, never omitted. */
+  collapsible: z.literal(true),
   notice: z.string(),
 });
 
