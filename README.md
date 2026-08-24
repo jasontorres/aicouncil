@@ -94,6 +94,8 @@ The scheduled curator publishes Issues: `CURATOR_API_KEY` (not the invite token)
 
 ## Deploy on Cloudflare
 
+Live Worker on the BetterGov account: https://aicouncil.bettergov.workers.dev
+
 Production target is the BetterGov Cloudflare account (`account_id` in `apps/api/wrangler.jsonc`). Authenticate with `CLOUDFLARE_API_TOKEN` (Workers Edit + D1 Edit on that account) or `wrangler login`.
 
 From `apps/api`:
