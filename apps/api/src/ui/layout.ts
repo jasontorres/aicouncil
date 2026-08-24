@@ -317,10 +317,29 @@ pre.snippet { margin: 0.8rem 0 1.2rem; }
   border-bottom: 1px dashed var(--dash);
 }
 .section-note { font-size: 0.88rem; color: var(--muted); }
-.sources { max-width: 46rem; margin: 1.6rem 0 0; }
+.sources {
+  max-width: 46rem;
+  margin: 1.6rem 0 0.4rem;
+  border-bottom: 1px solid var(--rule);
+}
+.sources > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 0 8px;
+}
+.sources > summary:hover { color: var(--accent); }
+.sources[open] { padding-bottom: 4px; }
 .source-list {
   list-style: none;
-  margin: 0.6rem 0 0;
+  margin: 0.4rem 0 0.4rem;
   padding: 0;
 }
 .source-list li {

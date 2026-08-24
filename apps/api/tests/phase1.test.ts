@@ -749,6 +749,8 @@ describe("Sanggunian Phase 1", () => {
     expect(html).toContain(slug);
     expect(html).toContain("class=\"model-id\"");
     expect(html).toContain("<summary>grounding</summary>");
+    expect(html).toContain("<details class=\"sources\"");
+    expect(html).not.toMatch(/<details class="sources"[^>]*\sopen\b/);
     expect(html).toContain(">Sources<");
     expect(html).toContain("https://lawphil.net/statutes/repacts/ra2025/ra_12232_2025.html");
     expect(html).toContain("https://www.philstar.com/headlines/2026/08/07/2547578/2-year-bske-postponement-5-year-term-pushed");
