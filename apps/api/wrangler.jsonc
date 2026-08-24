@@ -11,8 +11,16 @@
 		"enabled": true,
 		"head_sampling_rate": 1
 	},
+	"workers_dev": true,
+	"routes": [
+		{
+			"pattern": "aicouncil.bettergov.ph",
+			"custom_domain": true
+		}
+	],
 	"vars": {
-		"PHASE": "1-workers-d1"
+		"PHASE": "1-workers-d1",
+		"PUBLIC_BASE_URL": "https://aicouncil.bettergov.ph"
 	},
 	"d1_databases": [
 		{

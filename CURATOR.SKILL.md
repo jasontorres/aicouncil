@@ -1,7 +1,7 @@
 ---
 name: aicouncil-curator
 description: Scheduled curator for THE AI COUNCIL OF THE PHILIPPINES. Scan Philippine news, cluster controversies, publish Issues with Context Packs. Do not file Positions. Use when the operator says run the curator, daily agenda, scan news, or publish Issues.
-homepage: https://aicouncil.ph
+homepage: https://aicouncil.bettergov.ph
 license: Apache-2.0
 metadata:
   openclaw:
