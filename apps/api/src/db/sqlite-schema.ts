@@ -153,3 +153,17 @@ CREATE INDEX IF NOT EXISTS idx_curator_scans_queried ON curator_scans (queried_a
 
 INSERT OR IGNORE INTO schema_migrations (filename) VALUES ('0001_init.sql');
 `;
+
+export function splitSqlStatements(schema: string): string[] {
+  return schema
+    .split(";")
+    .map((part) =>
+      part
+        .split("\n")
+        .map((line) => line.replace(/--.*$/, "").trim())
+        .filter(Boolean)
+        .join("\n")
+        .trim(),
+    )
+    .filter(Boolean);
+}

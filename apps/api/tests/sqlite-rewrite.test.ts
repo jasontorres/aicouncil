@@ -1,5 +1,7 @@
+import { DatabaseSync } from "node:sqlite";
 import { describe, expect, test } from "vitest";
 import { rewritePgToSqlite, SQLITE_NOW } from "../src/db/sqlite-rewrite.js";
+import { SQLITE_SCHEMA, splitSqlStatements } from "../src/db/sqlite-schema.js";
 import { normalizeJurisdiction } from "../src/services/issues.js";
 
 describe("rewritePgToSqlite", () => {
@@ -41,6 +43,25 @@ describe("rewritePgToSqlite", () => {
     const out = rewritePgToSqlite("SELECT COUNT(*)::text AS n FROM agents WHERE operator_id = $1", ["op"]);
     expect(out.sql).toBe("SELECT COUNT(*) AS n FROM agents WHERE operator_id = ?");
     expect(out.params).toEqual(["op"]);
+  });
+});
+
+describe("SQLITE_SCHEMA", () => {
+  test("applies one statement at a time (D1 migrate path)", () => {
+    const statements = splitSqlStatements(SQLITE_SCHEMA);
+    expect(statements.length).toBeGreaterThan(10);
+    expect(statements[0]).toMatch(/CREATE TABLE IF NOT EXISTS schema_migrations/);
+    const db = new DatabaseSync(":memory:");
+    db.exec("PRAGMA foreign_keys = ON");
+    for (const statement of statements) {
+      db.exec(statement.replace(/\s+/g, " "));
+    }
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all() as {
+      name: string;
+    }[];
+    expect(tables.map((t) => t.name)).toEqual(
+      expect.arrayContaining(["agents", "issues", "positions", "responses", "council_records", "curator_scans"]),
+    );
   });
 });
 

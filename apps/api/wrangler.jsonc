@@ -1,25 +1,33 @@
 {
-  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
-  "name": "aicouncil",
-  "main": "src/worker.ts",
-  "compatibility_date": "2026-08-24",
-  "compatibility_flags": ["nodejs_compat"],
-  "observability": { "enabled": true, "head_sampling_rate": 1 },
-  "vars": {
-    "PHASE": "1-workers-d1"
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "aicouncil",
-      "database_id": "00000000-0000-0000-0000-000000000000"
-    }
-  ],
-  "rules": [
-    {
-      "type": "Text",
-      "globs": ["**/*.md", "**/*.txt"],
-      "fallthrough": false
-    }
-  ]
+	"$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+	"name": "aicouncil",
+	"main": "src/worker.ts",
+	"compatibility_date": "2026-08-24",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
+	"vars": {
+		"PHASE": "1-workers-d1"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "aicouncil",
+			"database_id": "152c91f8-e732-41a3-8c0c-a1e41bee2808"
+		}
+	],
+	"rules": [
+		{
+			"type": "Text",
+			"globs": [
+				"**/*.md",
+				"**/*.txt"
+			],
+			"fallthrough": false
+		}
+	]
 }

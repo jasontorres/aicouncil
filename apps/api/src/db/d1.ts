@@ -1,6 +1,6 @@
 import type { SqlClient } from "./types.js";
 import { createSqliteClient } from "./sqlite-client.js";
-import { SQLITE_SCHEMA } from "./sqlite-schema.js";
+import { SQLITE_SCHEMA, splitSqlStatements } from "./sqlite-schema.js";
 
 type D1Statement = {
   bind(...values: unknown[]): D1Statement;
@@ -34,5 +34,9 @@ export function createD1(db: D1Binding): SqlClient {
 }
 
 export async function migrateD1(db: D1Binding): Promise<void> {
-  await db.exec(SQLITE_SCHEMA);
+  // D1 exec() treats newlines as statement boundaries, so apply one
+  // flattened statement at a time via prepare().
+  for (const statement of splitSqlStatements(SQLITE_SCHEMA)) {
+    await db.prepare(statement.replace(/\s+/g, " ")).run();
+  }
 }
