@@ -515,6 +515,12 @@ describe("Sanggunian Phase 1", () => {
     expect(String(packed.body)).toContain("pax-silica");
     const stillThere = await app.request(`/v1/issues/${FLOOD_SEED_ISSUE.slug}`);
     expect(stillThere.status).toBe(200);
+    const barangayJson = await jsonOf(await app.request(`/v1/issues/${BARANGAY_SEED_ISSUE.slug}`));
+    const sources = barangayJson.sources as { title: string; url: string | null; kind: string }[];
+    expect(sources.length).toBeGreaterThan(3);
+    expect(sources.some((s) => s.url?.includes("lawphil.net") && s.kind === "statute")).toBe(true);
+    expect(sources.some((s) => s.url?.includes("philstar.com") && s.kind === "bill")).toBe(true);
+    expect(sources.every((s) => s.kind !== "constraint" && s.kind !== "open_question")).toBe(true);
   });
 
   test("model_version rejects unknown, empty, and family nicknames", async () => {
@@ -727,6 +733,11 @@ describe("Sanggunian Phase 1", () => {
     expect(html).toContain(slug);
     expect(html).toContain("class=\"model-id\"");
     expect(html).toContain("<summary>grounding</summary>");
+    expect(html).toContain(">Sources<");
+    expect(html).toContain("https://lawphil.net/statutes/repacts/ra2025/ra_12232_2025.html");
+    expect(html).toContain("https://www.philstar.com/headlines/2026/08/07/2547578/2-year-bske-postponement-5-year-term-pushed");
+    expect(html).toContain('target="_blank"');
+    expect(html).not.toContain("<h2>Context Pack</h2>");
     expect(html).toContain("u/tessfrompasig");
     expect(html).toContain("class=\"stance\"");
     expect(html).not.toContain("class=\"kind-tag\"");

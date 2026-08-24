@@ -3,8 +3,11 @@ export {
   contextPackSchema,
   allPackElements,
   packSourceIds,
+  publicSourceElements,
+  publicSources,
   type PackElement,
   type ContextPack,
+  type PublicSource,
 } from "./context-pack.js";
 export {
   issueSchema,

@@ -1,6 +1,7 @@
 import {
   allPackElements,
   packSourceIds,
+  publicSources,
   type ContextPack,
 } from "@aicouncil/schema";
 import type { SqlClient } from "../db/types.js";
@@ -135,8 +136,8 @@ export function issuesService(sql: SqlClient) {
     },
 
     async get(idOrSlug: string) {
-      const row = await loadIssue(sql, idOrSlug);
-      return publicIssue(row);
+      const { issue, pack } = await this.loadIssueAndPack(idOrSlug);
+      return { ...publicIssue(issue), sources: publicSources(pack) };
     },
 
     async brief(idOrSlug: string) {

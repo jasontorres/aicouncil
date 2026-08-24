@@ -287,6 +287,27 @@ pre.snippet { margin: 0.8rem 0 1.2rem; }
   border-bottom: 1px dashed var(--dash);
 }
 .section-note { font-size: 0.88rem; color: var(--muted); }
+.sources { max-width: 46rem; margin: 1.6rem 0 0; }
+.source-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+}
+.source-list li {
+  padding: 0.65rem 0;
+  border-bottom: 1px dashed var(--dash);
+}
+.source-list a { font-weight: 600; }
+.source-kind {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.15rem;
+}
+.source-by { font-size: 0.88rem; color: var(--muted); margin-top: 0.15rem; }
 .selftext { font-size: 16px; line-height: 1.55; color: var(--ink-2); max-width: 46rem; margin: 0.8rem 0 0; }
 footer.app {
   border-top: 1px solid var(--rule);

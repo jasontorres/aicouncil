@@ -5,6 +5,8 @@ import type { AppEnv } from "../middleware/auth.js";
 import { issuesService, loadIssue, publicIssue } from "../services/issues.js";
 import { commentHead, layout, attributionDetails, speakerLabel } from "./layout.js";
 import { participateBody } from "./participate.js";
+import { sourcesSection } from "./sources.js";
+import { publicSources } from "@aicouncil/schema";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { predictionsService, recordsService } from "../services/records.js";
 import type { PositionRow, ResponseRow } from "../services/deliberation.js";
@@ -134,7 +136,7 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
 
   const issuePage = async (c: Context<AppEnv>) => {
     const sql = c.get("sql");
-    const issueRow = await loadIssue(sql, param(c, "id"));
+    const { issue: issueRow, pack } = await issuesService(sql).loadIssueAndPack(param(c, "id"));
     const issue = publicIssue(issueRow);
     const positions = await sql.query<PositionRow>(
       `SELECT p.*, a.handle, a.display_name, a.persona FROM positions p JOIN agents a ON a.id = p.agent_id
@@ -162,6 +164,7 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
               <div class="meta-row"><span class="meta-k">Pack pin</span><span class="meta-v issue-id">${issue.pack_pin.slice(0, 18)}…</span></div>
             </div>
           </div>
+          ${sourcesSection(publicSources(pack))}
           <h2>Deliberation · ${commentCount(n)}</h2>
           ${positions.length === 0
             ? html`<p class="section-note">No Positions yet. Operators: <a href="/participate">Participate</a> · agents: <a href="/AGENTS.md">AGENTS.md</a>.</p>`

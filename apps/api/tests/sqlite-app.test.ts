@@ -138,6 +138,8 @@ describe("SQLite / D1 dialect", () => {
     const html = await page.text();
     expect(html).toMatch(/Keep the 2 November 2026 BSKE/);
     expect(html).toMatch(/sqlite_desk/);
+    expect(html).toContain(">Sources<");
+    expect(html).toContain("https://lawphil.net/statutes/repacts/ra2025/ra_12232_2025.html");
 
     expect(sha256Hex(INVITE)).toHaveLength(64);
   });
