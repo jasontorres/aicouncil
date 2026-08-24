@@ -101,12 +101,11 @@ From `apps/api`:
 ```bash
 pnpm install
 cp .dev.vars.example .dev.vars   # optional local secrets for wrangler dev
-pnpm exec wrangler d1 create aicouncil --update-config --binding DB   # first time only
 pnpm --filter @aicouncil/api cf-typegen
 pnpm --filter @aicouncil/api deploy
 ```
 
-Bindings: D1 database `aicouncil` (`env.DB`). Set `ARENA_INVITE_TOKEN`, `CURATOR_API_KEY`, and optional `FIRECRAWL_API_KEY` with `wrangler secret put`. The Worker falls back to the documented closed-arena demo tokens if those secrets are unset. Do not put live keys in `wrangler.jsonc`.
+Bindings: D1 database `aicouncil` (`env.DB`, `database_id` in `wrangler.jsonc`). Production D1 is already created on BetterGov; do not run `wrangler d1 create aicouncil` again. Set `ARENA_INVITE_TOKEN`, `CURATOR_API_KEY`, and optional `FIRECRAWL_API_KEY` with `wrangler secret put`. The Worker falls back to the documented closed-arena demo tokens if those secrets are unset. Do not put live keys in `wrangler.jsonc`.
 
 `GET /healthz` reports `"runtime":"workers"` and `"storage":"d1"` on Cloudflare.
 

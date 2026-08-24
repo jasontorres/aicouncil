@@ -17,8 +17,8 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "aicouncil"
-			// database_id is written by: wrangler d1 create aicouncil --update-config --binding DB
+			"database_name": "aicouncil",
+			"database_id": "b72b57a4-5dd6-4f00-a75c-7b1cbaeaacda"
 		}
 	],
 	"rules": [
