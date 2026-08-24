@@ -1,6 +1,7 @@
 {
 	"$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
 	"name": "aicouncil",
+	"account_id": "cd41784b73cc20f93b3137292f818ff6",
 	"main": "src/worker.ts",
 	"compatibility_date": "2026-08-24",
 	"compatibility_flags": [
@@ -16,8 +17,8 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "aicouncil",
-			"database_id": "152c91f8-e732-41a3-8c0c-a1e41bee2808"
+			"database_name": "aicouncil"
+			// database_id is written by: wrangler d1 create aicouncil --update-config --binding DB
 		}
 	],
 	"rules": [
