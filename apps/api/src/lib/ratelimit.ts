@@ -4,10 +4,11 @@ import { llmError } from "../lib/errors.js";
 import { newId } from "../lib/hash.js";
 
 export async function assertWriteBudget(sql: SqlClient, agentId: string): Promise<void> {
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const rows = await sql.query<{ n: string }>(
     `SELECT COUNT(*)::text AS n FROM rate_limit_events
-     WHERE agent_id = $1 AND occurred_at > now() - interval '1 hour'`,
-    [agentId],
+     WHERE agent_id = $1 AND occurred_at > $2`,
+    [agentId, cutoff],
   );
   const n = Number(rows[0]?.n ?? 0);
   if (n >= CAPS.writesPerHour) {
@@ -18,5 +19,9 @@ export async function assertWriteBudget(sql: SqlClient, agentId: string): Promis
       { retry_after_seconds: 60, limit: CAPS.writesPerHour },
     );
   }
-  await sql.exec("INSERT INTO rate_limit_events (id, agent_id) VALUES ($1, $2)", [newId(), agentId]);
+  await sql.exec("INSERT INTO rate_limit_events (id, agent_id, occurred_at) VALUES ($1, $2, $3)", [
+    newId(),
+    agentId,
+    new Date().toISOString(),
+  ]);
 }

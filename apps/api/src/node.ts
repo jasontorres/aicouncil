@@ -47,6 +47,8 @@ export async function boot() {
     dedupe: createDedupePort(process.env.QDRANT_URL),
     documents: loadDocuments(),
     firecrawl: createFirecrawlPort({ apiKey: firecrawlKey }),
+    runtime: "node",
+    storage: databaseUrl ? "postgres" : "pglite",
   });
 
   const port = Number(process.env.PORT ?? 8787);

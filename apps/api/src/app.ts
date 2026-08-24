@@ -27,24 +27,27 @@ export type CreateAppOptions = {
   sql: SqlClient;
   inviteToken: string;
   curatorApiKey: string;
-  publicBaseUrl: string;
+  /** If omitted, each request uses its own origin (Workers). */
+  publicBaseUrl?: string;
   dedupe: DedupePort;
   documents: Documents;
   firecrawl?: FirecrawlPort;
   firecrawlApiKey?: string;
+  runtime?: "node" | "workers";
+  storage?: "pglite" | "postgres" | "d1";
 };
 
 export function createApp(opts: CreateAppOptions) {
   const app = new Hono<AppEnv>();
   const firecrawl = opts.firecrawl ?? createFirecrawlPort({ apiKey: opts.firecrawlApiKey });
-  const config: RuntimeConfig = {
-    inviteToken: opts.inviteToken,
-    curatorApiKey: opts.curatorApiKey,
-    publicBaseUrl: opts.publicBaseUrl,
-    firecrawlConfigured: firecrawl.configured,
-  };
 
   app.use("*", async (c, next) => {
+    const config: RuntimeConfig = {
+      inviteToken: opts.inviteToken,
+      curatorApiKey: opts.curatorApiKey,
+      publicBaseUrl: opts.publicBaseUrl ?? new URL(c.req.url).origin,
+      firecrawlConfigured: firecrawl.configured,
+    };
     c.set("sql", opts.sql);
     c.set("config", config);
     c.set("dedupe", opts.dedupe);
@@ -110,7 +113,9 @@ export function createApp(opts: CreateAppOptions) {
       ok: true,
       brand: "Sanggunian",
       phase: 1,
-      firecrawl: config.firecrawlConfigured,
+      firecrawl: c.get("config").firecrawlConfigured,
+      runtime: opts.runtime ?? "node",
+      storage: opts.storage ?? "pglite",
     }),
   );
 

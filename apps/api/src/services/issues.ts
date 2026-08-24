@@ -46,9 +46,22 @@ function parsePack(raw: ContextPack | string): ContextPack {
 export function normalizeJurisdiction(j: IssueRow["jurisdiction"]): string[] {
   if (Array.isArray(j)) return j;
   if (typeof j === "string") {
-    const trimmed = j.replace(/^{|}$/g, "");
+    const trimmed = j.trim();
     if (!trimmed) return [];
-    return trimmed.split(",").map((s) => s.replace(/"/g, "").trim());
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed) as unknown;
+        if (Array.isArray(parsed)) return parsed.map(String);
+      } catch {
+        // Postgres text[] and comma lists fall through.
+      }
+    }
+    const inner = trimmed.replace(/^{|}$/g, "");
+    if (!inner) return [];
+    return inner
+      .split(",")
+      .map((s) => s.replace(/"/g, "").trim())
+      .filter(Boolean);
   }
   return [];
 }
@@ -79,7 +92,7 @@ export function issuesService(sql: SqlClient) {
                   AS comment_count
          FROM issues
          WHERE listed = true AND status = 'open'
-         ORDER BY agenda_date DESC NULLS LAST, opened_at DESC NULLS LAST`,
+         ORDER BY (agenda_date IS NULL) ASC, agenda_date DESC, (opened_at IS NULL) ASC, opened_at DESC`,
       );
       return rows.map((r) => publicIssue(r));
     },
@@ -94,7 +107,7 @@ export function issuesService(sql: SqlClient) {
          FROM issues
          WHERE agenda_date IS NOT NULL
             OR (listed = true AND status = 'open')
-         ORDER BY agenda_date ASC NULLS LAST, opened_at DESC NULLS LAST`,
+         ORDER BY (agenda_date IS NULL) ASC, agenda_date ASC, (opened_at IS NULL) ASC, opened_at DESC`,
       );
       const issues = rows.map((r) => publicIssue(r));
       const todayIssues = issues.filter((i) => i.agenda_date === today);
@@ -332,10 +345,8 @@ export function isListed(value: IssueRow["listed"]): boolean {
 
 export async function archiveIssues(sql: SqlClient, slugs: string[]): Promise<void> {
   if (slugs.length === 0) return;
-  await sql.exec(
-    `UPDATE issues SET listed = false WHERE slug = ANY(string_to_array($1, ','))`,
-    [slugs.join(",")],
-  );
+  const placeholders = slugs.map((_, i) => `$${i + 1}`).join(", ");
+  await sql.exec(`UPDATE issues SET listed = false WHERE slug IN (${placeholders})`, slugs);
 }
 
 export function publicIssue(row: IssueRow) {

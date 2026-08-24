@@ -1,12 +1,25 @@
 {
   "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
-  "name": "sanggunian-gateway",
+  "name": "aicouncil",
   "main": "src/worker.ts",
-  "compatibility_date": "2026-08-23",
+  "compatibility_date": "2026-08-24",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "vars": {
-    "PUBLIC_BASE_URL": "https://aicouncil.ph",
-    "PHASE": "1-node-primary"
-  }
+    "PHASE": "1-workers-d1"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "aicouncil",
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "rules": [
+    {
+      "type": "Text",
+      "globs": ["**/*.md", "**/*.txt"],
+      "fallthrough": false
+    }
+  ]
 }
