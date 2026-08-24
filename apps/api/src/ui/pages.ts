@@ -6,6 +6,8 @@ import { issuesService, loadIssue, publicIssue } from "../services/issues.js";
 import { commentHead, layout, attributionDetails, speakerLabel } from "./layout.js";
 import { participateBody } from "./participate.js";
 import { sourcesSection } from "./sources.js";
+import { documentBlock } from "./copy.js";
+import { setCache } from "../middleware/headers.js";
 import { publicSources } from "@aicouncil/schema";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { predictionsService, recordsService } from "../services/records.js";
@@ -80,9 +82,8 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
     const sql = c.get("sql");
     const svc = issuesService(sql);
     const tracker = await svc.tracker();
-    const listed = await svc.list();
-    const todayIds = new Set(tracker.today_issues.map((i) => i.id));
-    const rest = listed.filter((i) => !todayIds.has(i.id));
+    const rest = tracker.recent;
+    setCache(c, 30);
     return c.html(
       layout({
         title: "Agenda",
@@ -138,16 +139,18 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
     const sql = c.get("sql");
     const { issue: issueRow, pack } = await issuesService(sql).loadIssueAndPack(param(c, "id"));
     const issue = publicIssue(issueRow);
-    const positions = await sql.query<PositionRow>(
-      `SELECT p.*, a.handle, a.display_name, a.persona FROM positions p JOIN agents a ON a.id = p.agent_id
-       WHERE p.issue_id = $1 ORDER BY p.created_at ASC`,
-      [issue.id],
-    );
-    const responses = await sql.query<ResponseRow>(
-      `SELECT r.*, a.handle, a.display_name, a.persona FROM responses r JOIN agents a ON a.id = r.agent_id
-       WHERE r.issue_id = $1 ORDER BY r.created_at ASC`,
-      [issue.id],
-    );
+    const [positions, responses] = await Promise.all([
+      sql.query<PositionRow>(
+        `SELECT p.*, a.handle, a.display_name, a.persona FROM positions p JOIN agents a ON a.id = p.agent_id
+         WHERE p.issue_id = $1 ORDER BY p.created_at ASC`,
+        [issue.id],
+      ),
+      sql.query<ResponseRow>(
+        `SELECT r.*, a.handle, a.display_name, a.persona FROM responses r JOIN agents a ON a.id = r.agent_id
+         WHERE r.issue_id = $1 ORDER BY r.created_at ASC`,
+        [issue.id],
+      ),
+    ]);
     const n = positions.length + responses.length;
     return c.html(
       layout({
@@ -278,6 +281,7 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
   r.get("/tracker", async (c) => {
     const tracker = await issuesService(c.get("sql")).tracker();
     const cfg = c.get("config");
+    setCache(c, 30);
     return c.html(
       layout({
         title: "Daily tracker",
@@ -338,6 +342,7 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
       inviteToken: cfg.inviteToken,
       publicBaseUrl: cfg.publicBaseUrl,
     }).list();
+    setCache(c, 30);
     return c.html(
       layout({
         title: "Agent roster",
@@ -368,32 +373,39 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     );
   });
 
-  r.get("/participate", (c) =>
-    c.html(
+  r.get("/participate", (c) => {
+    setCache(c, 300);
+    return c.html(
       layout({
         title: "Participate",
         body: participateBody(c.get("config").publicBaseUrl),
       }),
-    ),
-  );
+    );
+  });
 
-  r.get("/charter", (c) =>
-    c.html(
+  r.get("/charter", (c) => {
+    setCache(c, 600);
+    return c.html(
       layout({
         title: "Charter",
-        body: html`<article>${mdLite(docs.charterEn)}</article>`,
+        body: documentBlock(docs.charterEn, html`<article>${mdLite(docs.charterEn)}</article>`, "Copy charter"),
       }),
-    ),
-  );
+    );
+  });
 
-  r.get("/charter/fil", (c) =>
-    c.html(
+  r.get("/charter/fil", (c) => {
+    setCache(c, 600);
+    return c.html(
       layout({
         title: "Kartilya",
-        body: html`<article lang="fil">${mdLite(docs.charterFil)}</article>`,
+        body: documentBlock(
+          docs.charterFil,
+          html`<article lang="fil">${mdLite(docs.charterFil)}</article>`,
+          "Copy charter",
+        ),
       }),
-    ),
-  );
+    );
+  });
 
   return r;
 }

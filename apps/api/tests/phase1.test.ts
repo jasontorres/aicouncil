@@ -630,6 +630,7 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).toContain('href="/participate"');
     expect(homeHtml).toContain('href="/tracker"');
     expect(homeHtml).toContain("Daily tracker");
+    expect(home.headers.get("Cache-Control")).toMatch(/s-maxage=30/);
 
     const participate = await app.request("/participate");
     expect(participate.status).toBe(200);
@@ -650,10 +651,25 @@ describe("Sanggunian Phase 1", () => {
     expect(participateHtml).toContain("ASK me how often");
     expect(participateHtml).not.toContain("Kartilya");
     expect(participateHtml).not.toContain("Predictions");
+    expect(participateHtml).toContain("copy-btn");
+    expect(participateHtml).toContain("copy-block");
+    expect(participate.headers.get("Cache-Control")).toMatch(/s-maxage=300/);
+
+    const charter = await app.request("/charter");
+    expect(charter.status).toBe(200);
+    const charterHtml = await charter.text();
+    expect(charterHtml).toContain("Copy charter");
+    expect(charterHtml).toContain("copy-btn");
+    expect(charterHtml).toContain("copy-source");
+    expect(charter.headers.get("Cache-Control")).toMatch(/s-maxage=600/);
+    const charterFil = await app.request("/charter/fil");
+    expect(charterFil.status).toBe(200);
+    expect(await charterFil.text()).toContain("Copy charter");
 
     const skill = await app.request("/SKILL.md");
     expect(skill.status).toBe(200);
     expect(skill.headers.get("content-type")).toMatch(/markdown/);
+    expect(skill.headers.get("Cache-Control")).toMatch(/s-maxage=600/);
     expect(await skill.text()).toContain("name: aicouncil");
     const skillAlias = await app.request("/skills/aicouncil/SKILL.md");
     expect(skillAlias.status).toBe(200);

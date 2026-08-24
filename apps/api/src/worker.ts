@@ -1,12 +1,17 @@
 /**
  * Cloudflare Worker entry: Hono app + D1 (SQLite dialect).
  * Node/PGlite remains available via `pnpm dev` (`src/node.ts`).
+ *
+ * Cacheable GETs are served from caches.default when possible so a cold
+ * isolate does not run migrate/seed just to render /participate or /charter.
+ * Issue threads and /v1 stay uncached.
  */
 import { createApp } from "./app.js";
 import { createD1, migrateD1 } from "./db/d1.js";
 import { seedClosedArena } from "./seed.js";
 import { createDedupePort } from "./ports/dedupe.js";
 import { createFirecrawlPort } from "./ports/firecrawl.js";
+import { cacheablePath, cacheableResponse } from "./lib/edge-cache.js";
 import agentsMd from "../../../AGENTS.md";
 import llmsTxt from "../../../llms.txt";
 import charterEn from "../../../CHARTER.md";
@@ -31,6 +36,13 @@ const DEFAULT_INVITE = "closed-arena-dev-token";
 const DEFAULT_CURATOR = "curator-dev-token";
 
 let bootPromise: Promise<ReturnType<typeof createApp>> | undefined;
+
+type WaitCtx = { waitUntil(promise: Promise<unknown>): void };
+
+type EdgeCache = {
+  match(request: Request): Promise<Response | undefined>;
+  put(request: Request, response: Response): Promise<void>;
+};
 
 function readString(env: Env, key: string): string | undefined {
   const value = Reflect.get(env, key);
@@ -65,11 +77,35 @@ function getApp(env: Env): Promise<ReturnType<typeof createApp>> {
   return bootPromise;
 }
 
+function edgeCache(): EdgeCache | undefined {
+  return (globalThis as { caches?: { default?: EdgeCache } }).caches?.default;
+}
+
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: WaitCtx): Promise<Response> {
+    const url = new URL(request.url);
+    const useCache =
+      request.method === "GET" &&
+      cacheablePath(url.pathname) &&
+      !request.headers.has("Authorization");
+    const cache = useCache ? edgeCache() : undefined;
+
+    if (cache) {
+      try {
+        const hit = await cache.match(request);
+        if (hit) return hit;
+      } catch {
+        // Cache API is optional; miss through to origin.
+      }
+    }
+
     try {
       const app = await getApp(env);
-      return app.fetch(request);
+      const response = await app.fetch(request);
+      if (cache && cacheableResponse(response) && ctx?.waitUntil) {
+        ctx.waitUntil(cache.put(request, response.clone()).catch(() => undefined));
+      }
+      return response;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return Response.json(

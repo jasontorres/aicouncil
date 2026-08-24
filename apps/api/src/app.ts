@@ -1,10 +1,11 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { cors } from "hono/cors";
 import { CONTENT_ORIGIN_HEADER, CONTENT_ORIGIN_VALUE } from "@aicouncil/schema";
 import type { SqlClient } from "./db/types.js";
 import type { DedupePort } from "./ports/dedupe.js";
 import type { AppEnv, RuntimeConfig } from "./middleware/auth.js";
-import { originHeaders } from "./middleware/headers.js";
+import { originHeaders, setCache } from "./middleware/headers.js";
 import { v1Router } from "./routes/v1-core.js";
 import { v1DeliberationRouter } from "./routes/v1-deliberation.js";
 import { handleMcp } from "./mcp/server.js";
@@ -108,6 +109,12 @@ export function createApp(opts: CreateAppOptions) {
     ),
   );
 
+  const sendDoc = (c: Context<AppEnv>, contentType: string, body: string) => {
+    setCache(c, 600);
+    c.header("content-type", contentType);
+    return c.body(body);
+  };
+
   app.get("/healthz", (c) =>
     c.json({
       ok: true,
@@ -119,50 +126,19 @@ export function createApp(opts: CreateAppOptions) {
     }),
   );
 
-  app.get("/AGENTS.md", (c) => {
-    c.header("content-type", "text/markdown; charset=utf-8");
-    return c.body(opts.documents.agentsMd);
-  });
-  app.get("/llms.txt", (c) => {
-    c.header("content-type", "text/plain; charset=utf-8");
-    return c.body(opts.documents.llmsTxt);
-  });
-  app.get("/CHARTER.md", (c) => {
-    c.header("content-type", "text/markdown; charset=utf-8");
-    return c.body(opts.documents.charterEn);
-  });
-  app.get("/CHARTER.fil.md", (c) => {
-    c.header("content-type", "text/markdown; charset=utf-8");
-    return c.body(opts.documents.charterFil);
-  });
-  app.get("/SKILL.md", (c) => {
-    c.header("content-type", "text/markdown; charset=utf-8");
-    return c.body(opts.documents.skillMd);
-  });
-  app.get("/skills/aicouncil/SKILL.md", (c) => {
-    c.header("content-type", "text/markdown; charset=utf-8");
-    return c.body(opts.documents.skillMd);
-  });
-  app.get("/.well-known/skills/SKILL.md", (c) => {
-    c.header("content-type", "text/markdown; charset=utf-8");
-    return c.body(opts.documents.skillMd);
-  });
-  app.get("/OPERATORS.md", (c) => {
-    c.header("content-type", "text/markdown; charset=utf-8");
-    return c.body(opts.documents.operatorsMd);
-  });
-  app.get("/CURATOR.md", (c) => {
-    c.header("content-type", "text/markdown; charset=utf-8");
-    return c.body(opts.documents.curatorMd);
-  });
-  app.get("/CURATOR.SKILL.md", (c) => {
-    c.header("content-type", "text/markdown; charset=utf-8");
-    return c.body(opts.documents.curatorSkillMd);
-  });
-  app.get("/skills/aicouncil-curator/SKILL.md", (c) => {
-    c.header("content-type", "text/markdown; charset=utf-8");
-    return c.body(opts.documents.curatorSkillMd);
-  });
+  app.get("/AGENTS.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.agentsMd));
+  app.get("/llms.txt", (c) => sendDoc(c, "text/plain; charset=utf-8", opts.documents.llmsTxt));
+  app.get("/CHARTER.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.charterEn));
+  app.get("/CHARTER.fil.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.charterFil));
+  app.get("/SKILL.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.skillMd));
+  app.get("/skills/aicouncil/SKILL.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.skillMd));
+  app.get("/.well-known/skills/SKILL.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.skillMd));
+  app.get("/OPERATORS.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.operatorsMd));
+  app.get("/CURATOR.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.curatorMd));
+  app.get("/CURATOR.SKILL.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.curatorSkillMd));
+  app.get("/skills/aicouncil-curator/SKILL.md", (c) =>
+    sendDoc(c, "text/markdown; charset=utf-8", opts.documents.curatorSkillMd),
+  );
 
   app.all("/mcp", (c) => handleMcp(c));
 
