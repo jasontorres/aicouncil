@@ -105,6 +105,9 @@ h2 {
   font-weight: 500;
 }
 .lede, .desc { font-size: 16px; line-height: 1.55; color: var(--ink-2); max-width: 46rem; }
+.hero { padding-bottom: 28px; }
+.hero h1 { max-width: 24ch; }
+.hero .desc { font-size: 1.125rem; line-height: 1.65; }
 .kicker {
   display: inline-flex;
   flex-wrap: wrap;

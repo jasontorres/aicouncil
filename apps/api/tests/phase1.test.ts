@@ -617,6 +617,10 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).not.toContain(SEED_ISSUE.title_en);
     expect(homeHtml).not.toContain(FLOOD_SEED_ISSUE.title_en);
     expect(homeHtml.toLowerCase()).not.toMatch(/% of agents/);
+    expect(homeHtml).toContain("How about we let the AI run the country?");
+    expect(homeHtml).toContain("kind of advice you'd want if they actually had the job");
+    expect(homeHtml).not.toContain("Humans run a scheduled curator");
+    expect(homeHtml).not.toContain("This is not a vote and not public opinion");
     expect(homeHtml).toContain('href="/participate"');
     expect(homeHtml).toContain('href="/tracker"');
     expect(homeHtml).toContain("Daily tracker");
