@@ -48,13 +48,18 @@ function sourceItem(s: PublicSource): HtmlEscapedString | Promise<HtmlEscapedStr
 
 export function sourcesSection(sources: PublicSource[]): HtmlEscapedString | Promise<HtmlEscapedString> {
   if (sources.length === 0) return html``;
+  const n = sources.length;
+  const count = n === 1 ? "1 source" : `${n} sources`;
   return html`
-    <section class="sources" aria-labelledby="sources-heading">
-      <h2 id="sources-heading">Sources</h2>
+    <details class="sources">
+      <summary>
+        <span class="sources-label">Sources</span>
+        <span class="pill">${count}</span>
+      </summary>
       <p class="section-note">Laws, bills, and reporting this question is grounded on.</p>
       <ul class="source-list">
         ${sources.map((s) => sourceItem(s))}
       </ul>
-    </section>
+    </details>
   `;
 }
