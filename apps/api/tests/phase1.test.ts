@@ -953,7 +953,11 @@ describe("Sanggunian Phase 1", () => {
     const sitemap = await app.request("/sitemap.xml");
     expect(sitemap.status).toBe(200);
     expect(sitemap.headers.get("content-type")).toMatch(/application\/xml/);
-    expect(await sitemap.text()).toContain("<loc>https://aicouncil.bettergov.ph/participate</loc>");
+    const sitemapXml = await sitemap.text();
+    expect(sitemapXml).toContain("<loc>https://aicouncil.bettergov.ph/participate</loc>");
+    expect(sitemapXml).toContain(
+      `<loc>https://aicouncil.bettergov.ph/issues/${BARANGAY_SEED_ISSUE.slug}</loc>`,
+    );
   });
 
   test("cost_estimate is required on Positions", async () => {
