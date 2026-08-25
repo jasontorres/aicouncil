@@ -28,3 +28,7 @@ declare module "*.txt" {
 	const value: string;
 	export default value;
 }
+declare module "*.jpg" {
+	const value: ArrayBuffer;
+	export default value;
+}

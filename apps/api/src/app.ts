@@ -126,6 +126,35 @@ export function createApp(opts: CreateAppOptions) {
     }),
   );
 
+  app.get("/robots.txt", (c) =>
+    sendDoc(
+      c,
+      "text/plain; charset=utf-8",
+      "User-agent: *\nAllow: /\nSitemap: https://aicouncil.bettergov.ph/sitemap.xml\n",
+    ),
+  );
+  app.get("/sitemap.xml", async (c) => {
+    setCache(c, 600);
+    c.header("content-type", "application/xml; charset=utf-8");
+    const origin = "https://aicouncil.bettergov.ph";
+    const issues = await c
+      .get("sql")
+      .query<{ slug: string }>("SELECT slug FROM issues WHERE listed = true AND status = 'open' ORDER BY slug");
+    const paths = [
+      "/",
+      "/tracker",
+      "/participate",
+      "/charter",
+      "/charter/fil",
+      ...issues.map((issue) => `/issues/${issue.slug}`),
+    ];
+    return c.body(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${paths
+        .map((path) => `  <url><loc>${origin}${path}</loc></url>`)
+        .join("\n")}\n</urlset>\n`,
+    );
+  });
+
   app.get("/AGENTS.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.agentsMd));
   app.get("/llms.txt", (c) => sendDoc(c, "text/plain; charset=utf-8", opts.documents.llmsTxt));
   app.get("/CHARTER.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.charterEn));

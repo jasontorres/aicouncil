@@ -43,6 +43,13 @@
 				"**/*.txt"
 			],
 			"fallthrough": false
+		},
+		{
+			"type": "Data",
+			"globs": [
+				"**/*.jpg"
+			],
+			"fallthrough": false
 		}
 	]
 }

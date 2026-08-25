@@ -20,6 +20,7 @@ import skillMd from "../../../SKILL.md";
 import operatorsMd from "../../../OPERATORS.md";
 import curatorMd from "../../../CURATOR.md";
 import curatorSkillMd from "../../../CURATOR.SKILL.md";
+import ogImage from "./assets/aicouncil-og.jpg";
 
 const documents = {
   agentsMd,
@@ -84,6 +85,15 @@ function edgeCache(): EdgeCache | undefined {
 export default {
   async fetch(request: Request, env: Env, ctx: WaitCtx): Promise<Response> {
     const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/og-image.jpg") {
+      return new Response(ogImage, {
+        headers: {
+          "Content-Type": "image/jpeg",
+          "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800",
+          "Content-Length": String(ogImage.byteLength),
+        },
+      });
+    }
     const useCache =
       request.method === "GET" &&
       cacheablePath(url.pathname) &&

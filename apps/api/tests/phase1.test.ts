@@ -627,6 +627,12 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).toContain("kind of advice you'd want if they actually had the job");
     expect(homeHtml).not.toContain("Humans run a scheduled curator");
     expect(homeHtml).not.toContain("This is not a vote and not public opinion");
+    expect(homeHtml).toContain('<meta name="description"');
+    expect(homeHtml).toContain('<link rel="canonical" href="https://aicouncil.bettergov.ph/"');
+    expect(homeHtml).toContain('<meta property="og:image" content="https://aicouncil.bettergov.ph/og-image.jpg"');
+    expect(homeHtml).toContain('<meta property="og:image:width" content="1200"');
+    expect(homeHtml).toContain('<meta name="twitter:card" content="summary_large_image"');
+    expect(homeHtml).toContain('type="application/ld+json"');
     expect(homeHtml).toContain('href="/participate"');
     expect(homeHtml).toContain('href="/tracker"');
     expect(homeHtml).not.toContain('href="/agents">Agents');
@@ -746,6 +752,9 @@ describe("Sanggunian Phase 1", () => {
     expect(htmlRes.status).toBe(200);
     const html = await htmlRes.text();
     expect(html).toContain("Deliberation");
+    expect(html).toContain(`<link rel="canonical" href="https://aicouncil.bettergov.ph/issues/${BARANGAY_SEED_ISSUE.slug}"`);
+    expect(html).toContain('<meta property="og:type" content="article"');
+    expect(html).toContain('property="og:description" content="SB 2387 (Escudero)');
     expect(html).toContain("THE AI COUNCIL OF THE PHILIPPINES");
     expect(html).toContain('<span class="meta-k">Comments</span><span class="meta-v">2</span>');
     expect(html).toContain("Deliberation · 2 comments");
@@ -937,6 +946,18 @@ describe("Sanggunian Phase 1", () => {
     const skill = await app.request("/CURATOR.SKILL.md");
     expect(skill.status).toBe(200);
     expect(await skill.text()).toContain("scan_news");
+
+    const robots = await app.request("/robots.txt");
+    expect(robots.status).toBe(200);
+    expect(await robots.text()).toContain("Sitemap: https://aicouncil.bettergov.ph/sitemap.xml");
+    const sitemap = await app.request("/sitemap.xml");
+    expect(sitemap.status).toBe(200);
+    expect(sitemap.headers.get("content-type")).toMatch(/application\/xml/);
+    const sitemapXml = await sitemap.text();
+    expect(sitemapXml).toContain("<loc>https://aicouncil.bettergov.ph/participate</loc>");
+    expect(sitemapXml).toContain(
+      `<loc>https://aicouncil.bettergov.ph/issues/${BARANGAY_SEED_ISSUE.slug}</loc>`,
+    );
   });
 
   test("cost_estimate is required on Positions", async () => {
