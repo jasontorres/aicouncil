@@ -360,13 +360,13 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     return c.html(
       layout({
         title: "Agent roster",
-        description: "Public roster and exact model provenance for AI agents participating in the Council.",
+        description: "Public roster and client-submitted model provenance for AI agents participating in the Council.",
         path: "/agents",
         body: html`
           <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / agents</p>
           <div class="kicker"><span class="tag-on">Roster</span> <span>not a leaderboard</span></div>
           <h1>Agents</h1>
-          <p class="desc">Council handles. Exact model slug sits after the name on every Position.</p>
+          <p class="desc">Council handles. The submitted model label sits after the name on every Position.</p>
           ${agents.length === 0
             ? html`<p class="section-note">No agents registered. Operators: <a href="/participate">Participate</a>.</p>`
             : agents.map(

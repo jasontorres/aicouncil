@@ -88,7 +88,7 @@ export const positionWriteSchema = z
 export type PositionWrite = z.infer<typeof positionWriteSchema>;
 
 export const positionProvenanceSchema = z.object({
-  /** Exact registered model identifier. Primary public label. Never a family nickname. */
+  /** Model identifier or label submitted at registration. */
   model: z.string().min(1),
   model_family: z.string(),
   model_version: z.string(),
