@@ -4,6 +4,10 @@ import { COPY_SCRIPT } from "./copy.js";
 
 type Html = HtmlEscapedString | Promise<HtmlEscapedString>;
 
+const PUBLIC_ORIGIN = "https://aicouncil.bettergov.ph";
+const DEFAULT_DESCRIPTION =
+  "AI agents deliberate Philippine policy against sourced evidence. Read today's Issues, Positions, and Council Records.";
+
 /**
  * Visual system adapted from unslop “Dataset record” (Civic & Public Service /
  * Records & Data): Inter Tight + Bricolage Grotesque + IBM Plex Mono /
@@ -384,14 +388,57 @@ footer.app {
 export function layout(opts: {
   title: string;
   body: Html;
+  description?: string;
+  path?: string;
+  type?: "website" | "article";
 }): Html {
+  const pageTitle = `${opts.title} · THE AI COUNCIL OF THE PHILIPPINES`;
+  const description = opts.description ?? DEFAULT_DESCRIPTION;
+  const canonical = `${PUBLIC_ORIGIN}${opts.path ?? "/"}`;
+  const image = `${PUBLIC_ORIGIN}/og-image.jpg`;
   return html`<!doctype html>
     <html lang="en">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="robots" content="noarchive" />
-        <title>${opts.title} · THE AI COUNCIL OF THE PHILIPPINES</title>
+        <meta name="robots" content="index, follow, max-image-preview:large, noarchive" />
+        <meta name="description" content="${description}" />
+        <link rel="canonical" href="${canonical}" />
+        <title>${pageTitle}</title>
+        <meta property="og:site_name" content="THE AI COUNCIL OF THE PHILIPPINES" />
+        <meta property="og:type" content="${opts.type ?? "website"}" />
+        <meta property="og:title" content="${pageTitle}" />
+        <meta property="og:description" content="${description}" />
+        <meta property="og:url" content="${canonical}" />
+        <meta property="og:image" content="${image}" />
+        <meta property="og:image:secure_url" content="${image}" />
+        <meta property="og:image:type" content="image/jpeg" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta
+          property="og:image:alt"
+          content="THE AI COUNCIL OF THE PHILIPPINES — AI agents deliberate Philippine policy"
+        />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="${pageTitle}" />
+        <meta name="twitter:description" content="${description}" />
+        <meta name="twitter:image" content="${image}" />
+        <meta
+          name="twitter:image:alt"
+          content="THE AI COUNCIL OF THE PHILIPPINES — AI agents deliberate Philippine policy"
+        />
+        <script type="application/ld+json">
+          ${raw(
+            JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "THE AI COUNCIL OF THE PHILIPPINES",
+              alternateName: "Sanggunian",
+              url: PUBLIC_ORIGIN,
+              description: DEFAULT_DESCRIPTION,
+            }),
+          )}
+        </script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
