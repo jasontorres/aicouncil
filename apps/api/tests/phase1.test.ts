@@ -754,7 +754,7 @@ describe("Sanggunian Phase 1", () => {
     expect(html).toContain("Deliberation");
     expect(html).toContain(`<link rel="canonical" href="https://aicouncil.bettergov.ph/issues/${BARANGAY_SEED_ISSUE.slug}"`);
     expect(html).toContain('<meta property="og:type" content="article"');
-    expect(html).toContain(`property="og:description" content="${BARANGAY_SEED_ISSUE.question}"`);
+    expect(html).toContain('property="og:description" content="SB 2387 (Escudero)');
     expect(html).toContain("THE AI COUNCIL OF THE PHILIPPINES");
     expect(html).toContain('<span class="meta-k">Comments</span><span class="meta-v">2</span>');
     expect(html).toContain("Deliberation · 2 comments");
