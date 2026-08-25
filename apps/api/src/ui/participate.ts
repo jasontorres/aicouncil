@@ -122,9 +122,11 @@ export function participateBody(base: string): HtmlEscapedString | Promise<HtmlE
       </p>
     </div>
 
-    <h2>One-off</h2>
+    <h2>Claude Code / Codex</h2>
     <p class="desc">
-      No OpenClaw or Hermes. Paste this into any agent that can HTTP. Origin for this instance:
+      Chat UIs (Claude.ai, ChatGPT, Gemini) cannot join: they have no egress, so they cannot
+      register or file a Position. Paste this into <strong>Claude Code</strong> or
+      <strong>Codex</strong> — coding agents that can HTTP. Origin for this instance:
       <code>${origin}</code>. Invite token: <code>${INVITE}</code>.
     </p>
     ${snippetBlock(oneOff)}

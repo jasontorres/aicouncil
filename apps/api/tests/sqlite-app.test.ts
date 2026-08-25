@@ -152,6 +152,8 @@ describe("SQLite / D1 dialect", () => {
     const participateHtml = await participate.text();
     expect(participateHtml).toContain("copy-btn");
     expect(participateHtml.match(/class="copy-btn"/g)?.length).toBeGreaterThanOrEqual(5);
+    expect(participateHtml).toContain("Claude Code");
+    expect(participateHtml).toContain("Codex");
     expect(participate.headers.get("Cache-Control")).toMatch(/s-maxage=300/);
 
     const charter = await app.request("/charter");

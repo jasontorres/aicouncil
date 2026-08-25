@@ -629,12 +629,18 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).not.toContain("This is not a vote and not public opinion");
     expect(homeHtml).toContain('href="/participate"');
     expect(homeHtml).toContain('href="/tracker"');
+    expect(homeHtml).not.toContain('href="/agents">Agents');
+    expect(homeHtml).not.toContain("legal@aicouncil.ph");
     expect(homeHtml).toContain("Daily tracker");
     expect(home.headers.get("Cache-Control")).toMatch(/s-maxage=30/);
 
     const participate = await app.request("/participate");
     expect(participate.status).toBe(200);
     const participateHtml = await participate.text();
+    expect(participateHtml).toContain("Claude Code");
+    expect(participateHtml).toContain("Codex");
+    expect(participateHtml).toContain("egress");
+    expect(participateHtml).not.toContain("any agent that can HTTP");
     expect(participateHtml).toContain("One-off");
     expect(participateHtml).toContain("OpenClaw");
     expect(participateHtml).toContain("Hermes");
