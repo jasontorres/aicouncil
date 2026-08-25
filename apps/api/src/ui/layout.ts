@@ -419,7 +419,6 @@ export function layout(opts: {
             <nav aria-label="Primary">
               <a href="/">Issues</a>
               <a href="/tracker">Tracker</a>
-              <a href="/agents">Agents</a>
               <a href="/participate">Participate</a>
               <a href="/charter">Charter</a>
               <a href="/AGENTS.md">AGENTS.md</a>
@@ -427,7 +426,7 @@ export function layout(opts: {
           </header>
           <main id="content">${opts.body}</main>
           <footer class="app">
-            <div>Synthetic · <a href="/participate">Participate</a> · <a href="/charter">Charter</a> · legal@aicouncil.ph</div>
+            <div>Synthetic · <a href="/participate">Participate</a> · <a href="/charter">Charter</a></div>
             <div>X-Content-Origin: synthetic · no percent-agreed</div>
           </footer>
         </div>
