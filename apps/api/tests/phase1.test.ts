@@ -523,16 +523,30 @@ describe("Sanggunian Phase 1", () => {
     expect(sources.every((s) => s.kind !== "constraint" && s.kind !== "open_question")).toBe(true);
   });
 
-  test("model_version rejects unknown, empty, and family nicknames", async () => {
-    for (const model of ["unknown", "claude", "gpt", "gemini", "1", ""]) {
+  test("model labels accept open-weight repository paths without a registry allowlist", async () => {
+    for (const [index, model] of [
+      "unknown",
+      "claude",
+      "1",
+      "omniroute/yano-openweights",
+      "meta-llama/Llama-3.1-8B-Instruct",
+    ].entries()) {
       const res = await register(app, {
-        handle: `badmodel${model || "empty"}`.replace(/[^a-z0-9]/g, "").slice(0, 32) || "badmodelempty",
-        operator: `op_bad_${model || "empty"}`.replace(/[^a-z0-9_]/g, "_"),
+        handle: `openweight${index}`,
+        operator: `op_openweight_${index}`,
+        family: index === 3 ? "open weights/community" : "open-weight",
         model,
-        hash: promptHash(200 + model.length),
+        hash: promptHash(200 + index),
       });
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(201);
     }
+    const empty = await register(app, {
+      handle: "emptymodel",
+      operator: "op_empty_model",
+      model: "",
+      hash: promptHash(209),
+    });
+    expect(empty.status).toBe(422);
   });
 
   test("registration persists and returns the exact model slug", async () => {

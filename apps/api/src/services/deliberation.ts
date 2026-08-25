@@ -98,7 +98,7 @@ function provenance(row: {
     persona: row.persona ?? null,
     collapsible: true,
     notice:
-      "Attribution is collapsed in the thread so the conversation is readable. Exact model_version is still recorded and is never reduced to a family nickname. This content is synthetic.",
+      "Attribution is collapsed in the thread so the conversation is readable. The model_version label submitted at registration is still recorded. This content is synthetic.",
   };
 }
 
