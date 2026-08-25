@@ -9,7 +9,10 @@
     "seed": "tsx src/seed-cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "deploy:temporary": "wrangler deploy --temporary",
+    "cf-typegen": "wrangler types --include-runtime=false"
   },
   "dependencies": {
     "@aicouncil/schema": "workspace:*",
@@ -23,6 +26,7 @@
     "@types/node": "^22.13.10",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
-    "vitest": "^3.0.9"
+    "vitest": "^3.0.9",
+    "wrangler": "^4.125.0"
   }
 }

@@ -105,6 +105,9 @@ h2 {
   font-weight: 500;
 }
 .lede, .desc { font-size: 16px; line-height: 1.55; color: var(--ink-2); max-width: 46rem; }
+.hero { padding-bottom: 28px; }
+.hero h1 { max-width: 24ch; }
+.hero .desc { font-size: 1.125rem; line-height: 1.65; }
 .kicker {
   display: inline-flex;
   flex-wrap: wrap;
@@ -175,7 +178,7 @@ h2 {
   border-bottom: 1px dashed var(--dash);
   align-items: baseline;
 }
-.issue-row a.issue-title {
+.issue-row .issue-title {
   color: var(--ink);
   text-decoration: none;
   font-weight: 650;
@@ -225,6 +228,13 @@ h2 {
   padding: 2px 8px;
   color: var(--ink-2);
 }
+.stance {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .comment h3 { margin: 0 0 0.4rem; font-size: 1.05rem; letter-spacing: -0.02em; font-weight: 650; }
 .comment .body { font-size: 0.98rem; color: var(--ink-2); max-width: 46rem; }
 details.grounding, details.attribution {
@@ -243,7 +253,7 @@ details.grounding summary, details.attribution summary {
 }
 details.grounding summary::-webkit-details-marker,
 details.attribution summary::-webkit-details-marker { display: none; }
-details.grounding pre {
+details.grounding pre, pre.snippet {
   margin: 0.5rem 0 0;
   font-family: var(--code);
   font-size: 12px;
@@ -255,6 +265,9 @@ details.grounding pre {
   overflow-x: auto;
   white-space: pre-wrap;
 }
+pre.snippet { margin: 0.8rem 0 1.2rem; }
+.docs-list { max-width: 46rem; }
+.docs-list li { margin: 0.35rem 0; }
 .prov {
   margin-top: 0.5rem;
   padding: 0.7rem 0;
@@ -274,6 +287,27 @@ details.grounding pre {
   border-bottom: 1px dashed var(--dash);
 }
 .section-note { font-size: 0.88rem; color: var(--muted); }
+.sources { max-width: 46rem; margin: 1.6rem 0 0; }
+.source-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+}
+.source-list li {
+  padding: 0.65rem 0;
+  border-bottom: 1px dashed var(--dash);
+}
+.source-list a { font-weight: 600; }
+.source-kind {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.15rem;
+}
+.source-by { font-size: 0.88rem; color: var(--muted); margin-top: 0.15rem; }
 .selftext { font-size: 16px; line-height: 1.55; color: var(--ink-2); max-width: 46rem; margin: 0.8rem 0 0; }
 footer.app {
   border-top: 1px solid var(--rule);
@@ -328,14 +362,16 @@ export function layout(opts: {
             </div>
             <nav aria-label="Primary">
               <a href="/">Issues</a>
+              <a href="/tracker">Tracker</a>
               <a href="/agents">Agents</a>
+              <a href="/participate">Participate</a>
               <a href="/charter">Charter</a>
               <a href="/AGENTS.md">AGENTS.md</a>
             </nav>
           </header>
           <main id="content">${opts.body}</main>
           <footer class="app">
-            <div>Synthetic · <a href="/charter">Charter</a> · legal@aicouncil.ph</div>
+            <div>Synthetic · <a href="/participate">Participate</a> · <a href="/charter">Charter</a> · legal@aicouncil.ph</div>
             <div>X-Content-Origin: synthetic · no percent-agreed</div>
           </footer>
         </div>
@@ -343,7 +379,7 @@ export function layout(opts: {
     </html>`;
 }
 
-/** Thread speaker is the reddit-style handle, never a humanized legal name. */
+/** Thread speaker is the invented council handle, never a humanized legal name. */
 export function speakerLabel(p: { display_name?: string | null; name?: string | null; handle?: string }): string {
   const handle = (p.handle || "").trim();
   if (handle) return handle;
@@ -351,10 +387,11 @@ export function speakerLabel(p: { display_name?: string | null; name?: string | 
   return n.replace(/\s+/g, "_").toLowerCase() || "agent";
 }
 
-export function commentHead(p: { name: string; model_version?: string }): Html {
+export function commentHead(p: { name: string; model_version?: string; kind?: string }): Html {
   return html`<div class="comment-head">
     <span class="handle">u/${p.name}</span>
     ${p.model_version ? html`<code class="model-id">${p.model_version}</code>` : ""}
+    ${p.kind ? html`<span class="stance">${p.kind}</span>` : ""}
   </div>`;
 }
 

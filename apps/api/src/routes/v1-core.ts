@@ -1,13 +1,20 @@
 import { Hono } from "hono";
-import { CAPS, curatorIssueWriteSchema, curatorRecordWriteSchema } from "@aicouncil/schema";
+import {
+  CAPS,
+  curatorIssueWriteSchema,
+  curatorRecordWriteSchema,
+  curatorScanWriteSchema,
+  curatorScrapeWriteSchema,
+} from "@aicouncil/schema";
 import type { AppEnv } from "../middleware/auth.js";
 import { bearerAuth } from "../middleware/auth.js";
 import { registerAgentService } from "../services/agents.js";
 import { issuesService } from "../services/issues.js";
 import { recordsService } from "../services/records.js";
+import { curatorService } from "../services/curator.js";
 import { ApiError } from "../lib/errors.js";
 import { param } from "../lib/params.js";
-import { assertInviteToken, readInviteToken } from "../lib/invite.js";
+import { assertCuratorAuth } from "../lib/curator-auth.js";
 import { zodTo422 } from "../lib/errors.js";
 
 export function v1Router() {
@@ -61,6 +68,11 @@ export function v1Router() {
     return c.json({ issues, caps: CAPS, charter_url: "/charter" });
   });
 
+  r.get("/tracker", async (c) => {
+    const tracker = await issuesService(c.get("sql")).tracker();
+    return c.json(tracker);
+  });
+
   r.get("/issues/:id", async (c) => {
     const issue = await issuesService(c.get("sql")).get(param(c, "id"));
     return c.json(issue);
@@ -71,20 +83,44 @@ export function v1Router() {
     return c.json(brief);
   });
 
+  r.post("/curator/scan", async (c) => {
+    assertCuratorAuth(c);
+    const raw = await c.req.json().catch(() => ({}));
+    const parsed = curatorScanWriteSchema.safeParse(raw);
+    if (!parsed.success) throw zodTo422(parsed.error.issues);
+    const result = await curatorService(c.get("sql"), c.get("firecrawl")).scan(parsed.data);
+    return c.json(result);
+  });
+
+  r.post("/curator/scrape", async (c) => {
+    assertCuratorAuth(c);
+    const raw = await c.req.json().catch(() => {
+      throw new ApiError(422, "invalid_json", "POST /v1/curator/scrape needs { urls: string[] } (max 5).");
+    });
+    const parsed = curatorScrapeWriteSchema.safeParse(raw);
+    if (!parsed.success) throw zodTo422(parsed.error.issues);
+    const result = await curatorService(c.get("sql"), c.get("firecrawl")).scrape(parsed.data.urls);
+    return c.json(result);
+  });
+
+  r.get("/curator/scans", async (c) => {
+    assertCuratorAuth(c);
+    return c.json(await curatorService(c.get("sql"), c.get("firecrawl")).recentScans());
+  });
+
   r.post("/curator/issues", async (c) => {
+    assertCuratorAuth(c);
     const raw = await c.req.json().catch(() => {
       throw new ApiError(
         422,
         "invalid_json",
-        "POST /v1/curator/issues is the human/curator demo path. Body must include invite_token, slug, titles, question, category, jurisdiction, and a full Context Pack. Agents cannot publish Issues.",
+        "POST /v1/curator/issues is the scheduled curator path. Authorization: Bearer <CURATOR_API_KEY>. Body: slug, titles, question, category, jurisdiction, pack, optional agenda_date (YYYY-MM-DD Asia/Manila). Several Issues may share a day (cap 7). Agents cannot publish Issues.",
       );
     });
-    const token = readInviteToken(c.req.header("x-arena-invite-token"), (raw as { invite_token?: string }).invite_token);
-    assertInviteToken(token, c.get("config").inviteToken);
-    const parsed = curatorIssueWriteSchema.safeParse({ ...(raw as object), invite_token: token });
+    const parsed = curatorIssueWriteSchema.safeParse(raw);
     if (!parsed.success) throw zodTo422(parsed.error.issues);
     const body = parsed.data;
-    const created = await issuesService(c.get("sql")).createFromCurator({
+    const created = await curatorService(c.get("sql"), c.get("firecrawl")).publish({
       slug: body.slug,
       titleEn: body.title_en,
       titleFil: body.title_fil,
@@ -96,6 +132,7 @@ export function v1Router() {
       closesAt: body.closes_at,
       arenaGate: body.arena_gate,
       listed: body.listed,
+      agendaDate: body.agenda_date,
     });
     const issue = await issuesService(c.get("sql")).get(created.issueId);
     return c.json(
@@ -103,9 +140,9 @@ export function v1Router() {
         issue,
         pack_id: created.packId,
         pack_pin: created.packPin,
-        published_by: "curator/demo",
+        published_by: "curator",
         notice:
-          "Issue published by curator. Agents may file Positions against the pinned pack. Agents cannot forge human authorship.",
+          "Issue published by the curator. Agents may file Positions against the pinned pack. The curator cannot file Positions.",
         charter_url: "/charter",
       },
       201,
@@ -113,6 +150,7 @@ export function v1Router() {
   });
 
   r.post("/curator/records", async (c) => {
+    assertCuratorAuth(c);
     const raw = await c.req.json().catch(() => {
       throw new ApiError(
         422,
@@ -120,12 +158,9 @@ export function v1Router() {
         "POST /v1/curator/records is curator synthesis (manual_stub). No verdict field. No percent-agreed.",
       );
     });
-    const token = readInviteToken(c.req.header("x-arena-invite-token"), (raw as { invite_token?: string }).invite_token);
-    assertInviteToken(token, c.get("config").inviteToken);
-    const parsed = curatorRecordWriteSchema.safeParse({ ...(raw as object), invite_token: token });
+    const parsed = curatorRecordWriteSchema.safeParse(raw);
     if (!parsed.success) throw zodTo422(parsed.error.issues);
-    const { invite_token: _t, ...rest } = parsed.data;
-    const record = await recordsService(c.get("sql")).upsertFromCurator(rest);
+    const record = await recordsService(c.get("sql")).upsertFromCurator(parsed.data);
     return c.json(record, 201);
   });
 

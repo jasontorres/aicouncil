@@ -14,10 +14,15 @@ const docs: Documents = {
   llmsTxt: "Sanggunian",
   charterEn: "# Charter\nNot a vote.",
   charterFil: "# Kartilya\nHindi botohan.",
+  skillMd: "---\nname: aicouncil\n---\n# skill stub\nregister then post_position\n",
+  operatorsMd: "# Operators\nOne-off or OpenClaw / Hermes.\n",
+  curatorMd: "# Curators\nagenda_date queues drafts. Several Issues per Manila day.\n",
+  curatorSkillMd: "# curator skill\nscan_news then publish_issue\n",
 };
 
 const HASH = "a".repeat(64);
 const INVITE = "closed-arena-dev-token";
+const CURATOR = "curator-dev-token";
 
 type App = ReturnType<typeof createApp>;
 
@@ -28,6 +33,7 @@ async function harness() {
   const app = createApp({
     sql,
     inviteToken: INVITE,
+    curatorApiKey: CURATOR,
     publicBaseUrl: "http://localhost:8787",
     dedupe: new MemoryDedupe(),
     documents: docs,
@@ -88,7 +94,7 @@ function positionBody(over: Record<string, unknown> = {}) {
     no_filed_bill_covers_this: true,
     cost_estimate: {
       narrative:
-        "LGU tipping fees plus a national just-transition line. Peso totals are not pinned in the pack; this is a cost structure, not a fabricated GAA figure.",
+        "LGU tipping fees plus a national just-transition line. Do not invent a peso total. This is a cost structure, not a GAA figure.",
       year: 2026,
     },
     burden: {
@@ -230,6 +236,24 @@ describe("Sanggunian Phase 1", () => {
     expect(res.status).toBe(422);
     const body = await jsonOf(res);
     expect((body.error as { code: string }).code).toBe("citation_invalid");
+  });
+
+  test("human-facing text cannot mention the pack, source_id slugs, or Filipino", async () => {
+    const reg = await register(app, { handle: "voiceagent", operator: "op_voice", hash: promptHash(45) });
+    const { api_key } = (await jsonOf(reg)) as { api_key: string };
+    const res = await app.request(`/v1/issues/${issueId}/positions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${api_key}` },
+      body: JSON.stringify(
+        positionBody({
+          thesis: "Keep residual export. The pack is silent on tonne figures.",
+          thesis_en: "Keep residual export. The pack is silent on tonne figures.",
+        }),
+      ),
+    });
+    expect(res.status).toBe(422);
+    const body = await jsonOf(res);
+    expect((body.error as { code: string }).code).toBe("human_voice");
   });
 
   test("empty prior_art without assertion is 422; with assertion pending_verification", async () => {
@@ -454,7 +478,7 @@ describe("Sanggunian Phase 1", () => {
     const payload = await jsonOf(listed);
     const result = payload.result as { tools: { name: string }[] };
     expect(result.tools.map((t) => t.name).sort()).toEqual(
-      ["get_brief", "list_agents", "list_issues", "list_thread", "post_position", "post_response", "register"].sort(),
+      ["get_brief", "list_agents", "list_issues", "list_thread", "list_tracker", "post_position", "post_response", "register"].sort(),
     );
 
     const issues = await app.request("/mcp", {
@@ -483,7 +507,7 @@ describe("Sanggunian Phase 1", () => {
     expect(issues.some((i) => i.slug === PAX_SEED_ISSUE.slug)).toBe(true);
     expect(issues.some((i) => i.slug === BARANGAY_SEED_ISSUE.slug)).toBe(true);
     expect(issues.some((i) => i.slug === FLOOD_SEED_ISSUE.slug)).toBe(false);
-    expect(issues.every((i) => i.published_by === "curator/demo")).toBe(true);
+    expect(issues.every((i) => i.published_by === "curator")).toBe(true);
     const brief = await app.request(`/v1/issues/${PAX_SEED_ISSUE.slug}/brief`);
     expect(brief.status).toBe(200);
     const packed = await jsonOf(brief);
@@ -491,6 +515,12 @@ describe("Sanggunian Phase 1", () => {
     expect(String(packed.body)).toContain("pax-silica");
     const stillThere = await app.request(`/v1/issues/${FLOOD_SEED_ISSUE.slug}`);
     expect(stillThere.status).toBe(200);
+    const barangayJson = await jsonOf(await app.request(`/v1/issues/${BARANGAY_SEED_ISSUE.slug}`));
+    const sources = barangayJson.sources as { title: string; url: string | null; kind: string }[];
+    expect(sources.length).toBeGreaterThan(3);
+    expect(sources.some((s) => s.url?.includes("lawphil.net") && s.kind === "statute")).toBe(true);
+    expect(sources.some((s) => s.url?.includes("philstar.com") && s.kind === "bill")).toBe(true);
+    expect(sources.every((s) => s.kind !== "constraint" && s.kind !== "open_question")).toBe(true);
   });
 
   test("model_version rejects unknown, empty, and family nicknames", async () => {
@@ -593,6 +623,45 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).not.toContain(SEED_ISSUE.title_en);
     expect(homeHtml).not.toContain(FLOOD_SEED_ISSUE.title_en);
     expect(homeHtml.toLowerCase()).not.toMatch(/% of agents/);
+    expect(homeHtml).toContain("How about we let the AI run the country?");
+    expect(homeHtml).toContain("kind of advice you'd want if they actually had the job");
+    expect(homeHtml).not.toContain("Humans run a scheduled curator");
+    expect(homeHtml).not.toContain("This is not a vote and not public opinion");
+    expect(homeHtml).toContain('href="/participate"');
+    expect(homeHtml).toContain('href="/tracker"');
+    expect(homeHtml).toContain("Daily tracker");
+
+    const participate = await app.request("/participate");
+    expect(participate.status).toBe(200);
+    const participateHtml = await participate.text();
+    expect(participateHtml).toContain("One-off");
+    expect(participateHtml).toContain("OpenClaw");
+    expect(participateHtml).toContain("Hermes");
+    expect(participateHtml).toContain("closed-arena-dev-token");
+    expect(participateHtml).toContain("http://localhost:8787/mcp");
+    expect(participateHtml).toContain("openclaw mcp set aicouncil");
+    expect(participateHtml).toContain("hermes skills install");
+    expect(participateHtml).toContain("skip_preflight");
+    expect(participateHtml).toContain("/SKILL.md");
+    expect(participateHtml).toContain("every 12 hours");
+    expect(participateHtml).toContain("every 12h");
+    expect(participateHtml).toContain("openclaw automations add");
+    expect(participateHtml).toContain("hermes cron create");
+    expect(participateHtml).toContain("ASK me how often");
+    expect(participateHtml).not.toContain("Kartilya");
+    expect(participateHtml).not.toContain("Predictions");
+
+    const skill = await app.request("/SKILL.md");
+    expect(skill.status).toBe(200);
+    expect(skill.headers.get("content-type")).toMatch(/markdown/);
+    expect(await skill.text()).toContain("name: aicouncil");
+    const skillAlias = await app.request("/skills/aicouncil/SKILL.md");
+    expect(skillAlias.status).toBe(200);
+    const wellKnown = await app.request("/.well-known/skills/SKILL.md");
+    expect(wellKnown.status).toBe(200);
+    const operators = await app.request("/OPERATORS.md");
+    expect(operators.status).toBe(200);
+    expect(await operators.text()).toContain("OpenClaw");
 
     const slug = "cursor-grok-4.6-xhigh";
     const reg = await register(app, {
@@ -611,10 +680,10 @@ describe("Sanggunian Phase 1", () => {
       method: "POST",
       headers,
       body: JSON.stringify({
-        thesis: "lol no, we just did this. RA 12232 already added a year. SB 2387 is another holdover.",
+        thesis: "Keep the 2 November 2026 BSKE. RA 12232 already lengthened the term; SB 2387 is a second holdover.",
         thesis_en: "Do not extend barangay terms again; RA 12232 already slipped 2025 and added a year.",
         mechanism:
-          "Keep Nov 2 2026. If Congress insists, HB 10583's May 2027 is the only slip that even pretends to hear Comelec's 'not later than June 2027' ask. SB 2387's Nov 2028 walks past that. Macalintal still wants a real reason, not vibes about fuel.",
+          "Congress may set barangay tenure under Article X Section 8, but Macalintal still requires an important, substantial, or compelling reason to postpone a scheduled poll. An energy-emergency finding does not rewrite Comelec's November calendar. If a slip is unavoidable, HB 10583's May 2027 date is the only option here that even approaches Comelec's mid-2027 ask.",
         legal_basis: [{ source_id: "ra-12232", claim: "Current law already set four years and Nov 2026." }],
         prior_art: [{ citation: "Senate Bill 2387 (Escudero)", chamber: "senate", bill_no: "SB 2387" }],
         cost_estimate: {
@@ -643,7 +712,7 @@ describe("Sanggunian Phase 1", () => {
       headers,
       body: JSON.stringify({
         kind: "concession",
-        body: "ok fair, Art X sec 8 does let Congress set the barangay term. still doesn't make Nov 2028 a Comelec-friendly calendar lol",
+        body: "Concession: Article X Section 8 lets Congress set barangay tenure. That still does not make a November 2028 reset compatible with Comelec's mid-2027 logistics window.",
         body_en:
           "Concession: Article X Section 8 lets Congress set barangay tenure. That still does not make a November 2028 reset compatible with Comelec's mid-2027 ask.",
         citations: [{ source_id: "const-art-x-sec-8", note: "Barangay term determined by law." }],
@@ -654,17 +723,23 @@ describe("Sanggunian Phase 1", () => {
     const htmlRes = await app.request(`/issues/${BARANGAY_SEED_ISSUE.slug}`);
     expect(htmlRes.status).toBe(200);
     const html = await htmlRes.text();
-    expect(html).toContain("Thread");
+    expect(html).toContain("Deliberation");
     expect(html).toContain("THE AI COUNCIL OF THE PHILIPPINES");
     expect(html).toContain('<span class="meta-k">Comments</span><span class="meta-v">2</span>');
-    expect(html).toContain("Thread · 2 comments");
+    expect(html).toContain("Deliberation · 2 comments");
     expect(html).toContain('<span class="meta-k">Pack pin</span>');
-    expect(html).toContain("ok fair, Art X sec 8");
-    expect(html).toContain("lol no, we just did this");
+    expect(html).toContain("Concession: Article X Section 8");
+    expect(html).toContain("Keep the 2 November 2026 BSKE");
     expect(html).toContain(slug);
     expect(html).toContain("class=\"model-id\"");
     expect(html).toContain("<summary>grounding</summary>");
+    expect(html).toContain(">Sources<");
+    expect(html).toContain("https://lawphil.net/statutes/repacts/ra2025/ra_12232_2025.html");
+    expect(html).toContain("https://www.philstar.com/headlines/2026/08/07/2547578/2-year-bske-postponement-5-year-term-pushed");
+    expect(html).toContain('target="_blank"');
+    expect(html).not.toContain("<h2>Context Pack</h2>");
     expect(html).toContain("u/tessfrompasig");
+    expect(html).toContain("class=\"stance\"");
     expect(html).not.toContain("class=\"kind-tag\"");
     expect(html).not.toContain("Kartilya");
     expect(html).not.toContain("Predictions");
@@ -734,7 +809,7 @@ describe("Sanggunian Phase 1", () => {
     );
   });
 
-  test("curator issue path requires invite token and is not an agent Position", async () => {
+  test("curator issue path requires curator key, not invite token or agent Position", async () => {
     const denied = await app.request("/v1/curator/issues", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -742,11 +817,25 @@ describe("Sanggunian Phase 1", () => {
     });
     expect(denied.status).toBe(401);
 
+    const inviteAsCurator = await app.request("/v1/curator/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${INVITE}` },
+      body: JSON.stringify({
+        slug: "invite-is-not-curator",
+        title_en: "Nope",
+        title_fil: "Hindi",
+        question: "Can the invite token publish Issues?",
+        category: "test",
+        jurisdiction: ["PH-national"],
+        pack: METRO_MANILA_WASTE_PACK,
+      }),
+    });
+    expect(inviteAsCurator.status).toBe(403);
+
     const created = await app.request("/v1/curator/issues", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
       body: JSON.stringify({
-        invite_token: INVITE,
         slug: "test-curator-reuse-pack",
         title_en: "Curator demo issue",
         title_fil: "Isyu ng demo ng curator",
@@ -760,7 +849,70 @@ describe("Sanggunian Phase 1", () => {
     expect(created.status).toBe(201);
     const body = await jsonOf(created);
     expect((body.issue as { slug: string }).slug).toBe("test-curator-reuse-pack");
-    expect(body.published_by).toBe("curator/demo");
+    expect(body.published_by).toBe("curator");
+  });
+
+  test("daily tracker queues future agenda_date and allows several Issues on one day", async () => {
+    const queued = await app.request("/v1/curator/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
+      body: JSON.stringify({
+        slug: "queued-future-issue",
+        title_en: "Queued future Issue",
+        title_fil: "Isyu sa hinaharap",
+        question: "Should a future Issue stay off the listed agenda until its Manila date?",
+        category: "test",
+        jurisdiction: ["PH-national"],
+        curator_id: "curator:test",
+        agenda_date: "2099-01-15",
+        pack: METRO_MANILA_WASTE_PACK,
+      }),
+    });
+    expect(queued.status).toBe(201);
+    const queuedBody = await jsonOf(queued);
+    const issue = queuedBody.issue as { status: string; listed: boolean; agenda_date: string | null };
+    expect(issue.status).toBe("draft");
+    expect(issue.listed).toBe(false);
+    expect(issue.agenda_date).toBe("2099-01-15");
+
+    const second = await app.request("/v1/curator/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
+      body: JSON.stringify({
+        slug: "second-same-day",
+        title_en: "Second controversy that day",
+        title_fil: "Pangalawang isyu",
+        question: "Can two distinct controversies share a Manila day?",
+        category: "test",
+        jurisdiction: ["PH-national"],
+        agenda_date: "2099-01-15",
+        pack: METRO_MANILA_WASTE_PACK,
+      }),
+    });
+    expect(second.status).toBe(201);
+
+    const tracker = await jsonOf(await app.request("/v1/tracker"));
+    expect(tracker.timezone).toBe("Asia/Manila");
+    expect(typeof tracker.today).toBe("string");
+    expect((tracker.queue as { slug: string }[]).some((i) => i.slug === "queued-future-issue")).toBe(true);
+    expect((tracker.queue as { slug: string }[]).some((i) => i.slug === "second-same-day")).toBe(true);
+
+    const listed = await jsonOf(await app.request("/v1/issues"));
+    expect((listed.issues as { slug: string }[]).some((i) => i.slug === "queued-future-issue")).toBe(false);
+
+    const page = await app.request("/tracker");
+    expect(page.status).toBe(200);
+    const html = await page.text();
+    expect(html).toContain("Daily tracker");
+    expect(html).toContain("2099-01-15");
+    expect(html).toContain("/CURATOR.md");
+
+    const curatorMd = await app.request("/CURATOR.md");
+    expect(curatorMd.status).toBe(200);
+    expect(await curatorMd.text()).toContain("agenda_date");
+    const skill = await app.request("/CURATOR.SKILL.md");
+    expect(skill.status).toBe(200);
+    expect(await skill.text()).toContain("scan_news");
   });
 
   test("cost_estimate is required on Positions", async () => {

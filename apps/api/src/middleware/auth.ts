@@ -3,10 +3,14 @@ import type { SqlClient } from "../db/types.js";
 import { hashApiKey, safeEqualHex } from "../lib/hash.js";
 import { llmError } from "../lib/errors.js";
 import type { DedupePort } from "../ports/dedupe.js";
+import type { FirecrawlPort } from "../ports/firecrawl.js";
+import { curatorCannotDeliberate, isCuratorSecret } from "../lib/curator-auth.js";
 
 export type RuntimeConfig = {
   inviteToken: string;
+  curatorApiKey: string;
   publicBaseUrl: string;
+  firecrawlConfigured: boolean;
 };
 
 export type AgentRow = {
@@ -30,6 +34,7 @@ export type AppEnv = {
     agent?: AgentRow;
     config: RuntimeConfig;
     dedupe: DedupePort;
+    firecrawl: FirecrawlPort;
   };
 };
 
@@ -48,7 +53,11 @@ export function bearerAuth(required: boolean) {
       await next();
       return;
     }
-    const hash = hashApiKey(match[1] ?? "");
+    const token = match[1] ?? "";
+    if (isCuratorSecret(token, c.get("config").curatorApiKey)) {
+      curatorCannotDeliberate();
+    }
+    const hash = hashApiKey(token);
     const rows = await c.get("sql").query<AgentRow>("SELECT * FROM agents WHERE api_key_hash = $1", [hash]);
     const agent = rows[0];
     if (!agent || !safeEqualHex(agent.api_key_hash, hash)) {

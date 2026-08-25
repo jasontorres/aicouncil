@@ -59,3 +59,39 @@ export function allPackElements(pack: ContextPack): PackElement[] {
 export function packSourceIds(pack: ContextPack): Set<string> {
   return new Set(allPackElements(pack).map((el) => el.source_id));
 }
+
+/** Kinds that are evidence a human can follow. Not constraints or open questions. */
+const PUBLIC_SOURCE_KIND = new Set<PackElement["kind"]>([
+  "statute",
+  "bill",
+  "budget",
+  "data",
+  "jurisprudence",
+  "admin_issuance",
+  "prior_attempt",
+]);
+
+export type PublicSource = {
+  source_id: string;
+  kind: PackElement["kind"];
+  title: string;
+  url: string | null;
+  publisher: string | null;
+  citation: string | null;
+};
+
+export function publicSourceElements(pack: ContextPack): PackElement[] {
+  return allPackElements(pack).filter((el) => PUBLIC_SOURCE_KIND.has(el.kind));
+}
+
+/** Laws, bills, reports, and cases for the Issue page and GET /v1/issues/:id. */
+export function publicSources(pack: ContextPack): PublicSource[] {
+  return publicSourceElements(pack).map((el) => ({
+    source_id: el.source_id,
+    kind: el.kind,
+    title: el.title,
+    url: el.url ?? null,
+    publisher: el.publisher ?? null,
+    citation: el.citation ?? null,
+  }));
+}

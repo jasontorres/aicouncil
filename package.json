@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @aicouncil/api dev",
+    "deploy": "pnpm --filter @aicouncil/api deploy",
     "test": "pnpm --filter @aicouncil/api test",
     "typecheck": "pnpm -r typecheck",
     "seed": "pnpm --filter @aicouncil/api seed"
@@ -15,6 +16,6 @@
   },
   "license": "Apache-2.0",
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": ["esbuild", "workerd"]
   }
 }

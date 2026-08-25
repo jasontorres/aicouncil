@@ -10,37 +10,55 @@ import { v1DeliberationRouter } from "./routes/v1-deliberation.js";
 import { handleMcp } from "./mcp/server.js";
 import { publicPages } from "./ui/pages.js";
 import { ApiError } from "./lib/errors.js";
+import { createFirecrawlPort, type FirecrawlPort } from "./ports/firecrawl.js";
 
 export type Documents = {
   agentsMd: string;
   llmsTxt: string;
   charterEn: string;
   charterFil: string;
+  skillMd: string;
+  operatorsMd: string;
+  curatorMd: string;
+  curatorSkillMd: string;
 };
 
 export type CreateAppOptions = {
   sql: SqlClient;
   inviteToken: string;
-  publicBaseUrl: string;
+  curatorApiKey: string;
+  /** If omitted, each request uses its own origin (Workers). */
+  publicBaseUrl?: string;
   dedupe: DedupePort;
   documents: Documents;
+  firecrawl?: FirecrawlPort;
+  firecrawlApiKey?: string;
+  runtime?: "node" | "workers";
+  storage?: "pglite" | "postgres" | "d1";
 };
 
 export function createApp(opts: CreateAppOptions) {
   const app = new Hono<AppEnv>();
-  const config: RuntimeConfig = {
-    inviteToken: opts.inviteToken,
-    publicBaseUrl: opts.publicBaseUrl,
-  };
+  const firecrawl = opts.firecrawl ?? createFirecrawlPort({ apiKey: opts.firecrawlApiKey });
 
   app.use("*", async (c, next) => {
+    const config: RuntimeConfig = {
+      inviteToken: opts.inviteToken,
+      curatorApiKey: opts.curatorApiKey,
+      publicBaseUrl: opts.publicBaseUrl ?? new URL(c.req.url).origin,
+      firecrawlConfigured: firecrawl.configured,
+    };
     c.set("sql", opts.sql);
     c.set("config", config);
     c.set("dedupe", opts.dedupe);
+    c.set("firecrawl", firecrawl);
     await next();
   });
   app.use("*", originHeaders);
-  app.use("/mcp", cors({ origin: "*", allowHeaders: ["Authorization", "Content-Type", "Accept"] }));
+  app.use(
+    "/mcp",
+    cors({ origin: "*", allowHeaders: ["Authorization", "Content-Type", "Accept", "X-Curator-Key"] }),
+  );
 
   app.onError((err, c) => {
     c.header(CONTENT_ORIGIN_HEADER, CONTENT_ORIGIN_VALUE);
@@ -50,7 +68,7 @@ export function createApp(opts: CreateAppOptions) {
         const seconds = Number(err.extra.retry_after_seconds ?? 60);
         c.header("Retry-After", String(seconds));
       }
-      const status = err.status as 400 | 401 | 403 | 404 | 409 | 422 | 429 | 500;
+      const status = err.status as 400 | 401 | 403 | 404 | 409 | 422 | 429 | 500 | 502 | 503;
       return c.json(
         {
           error: {
@@ -82,14 +100,24 @@ export function createApp(opts: CreateAppOptions) {
       {
         error: {
           code: "not_found",
-          message: "No such route. See GET /v1/issues, POST /v1/agents/register, POST /mcp, GET /AGENTS.md.",
+          message:
+            "No such route. See GET /participate, GET /SKILL.md, GET /CURATOR.md, GET /v1/issues, POST /v1/agents/register, POST /mcp, GET /AGENTS.md.",
         },
       },
       404,
     ),
   );
 
-  app.get("/healthz", (c) => c.json({ ok: true, brand: "Sanggunian", phase: 1 }));
+  app.get("/healthz", (c) =>
+    c.json({
+      ok: true,
+      brand: "Sanggunian",
+      phase: 1,
+      firecrawl: c.get("config").firecrawlConfigured,
+      runtime: opts.runtime ?? "node",
+      storage: opts.storage ?? "pglite",
+    }),
+  );
 
   app.get("/AGENTS.md", (c) => {
     c.header("content-type", "text/markdown; charset=utf-8");
@@ -106,6 +134,34 @@ export function createApp(opts: CreateAppOptions) {
   app.get("/CHARTER.fil.md", (c) => {
     c.header("content-type", "text/markdown; charset=utf-8");
     return c.body(opts.documents.charterFil);
+  });
+  app.get("/SKILL.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.skillMd);
+  });
+  app.get("/skills/aicouncil/SKILL.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.skillMd);
+  });
+  app.get("/.well-known/skills/SKILL.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.skillMd);
+  });
+  app.get("/OPERATORS.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.operatorsMd);
+  });
+  app.get("/CURATOR.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.curatorMd);
+  });
+  app.get("/CURATOR.SKILL.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.curatorSkillMd);
+  });
+  app.get("/skills/aicouncil-curator/SKILL.md", (c) => {
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(opts.documents.curatorSkillMd);
   });
 
   app.all("/mcp", (c) => handleMcp(c));
