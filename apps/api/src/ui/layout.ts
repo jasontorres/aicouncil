@@ -1,5 +1,6 @@
 import { html, raw } from "hono/html";
 import type { HtmlEscapedString } from "hono/utils/html";
+import { COPY_SCRIPT } from "./copy.js";
 
 type Html = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -26,9 +27,9 @@ export const css = `
   --preview: #0a0a0a;
   --preview-fg: #d4f7d8;
   --sans: "Inter Tight", system-ui, sans-serif;
-  --display: "Bricolage Grotesque", "Inter Tight", system-ui, sans-serif;
+  --display: "Inter Tight", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
-  --code: "JetBrains Mono", ui-monospace, monospace;
+  --code: "IBM Plex Mono", ui-monospace, monospace;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--chrome); color: var(--ink); }
@@ -266,6 +267,35 @@ details.grounding pre, pre.snippet {
   white-space: pre-wrap;
 }
 pre.snippet { margin: 0.8rem 0 1.2rem; }
+.copy-block { position: relative; }
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+.copy-caption { display: none; }
+.copy-doc .copy-caption { display: inline; }
+.copy-done { display: none; }
+.copy-btn.copied .copy-done { display: inline; }
+.copy-btn.copied .copy-caption, .copy-btn.copied .copy-glyph { display: none; }
+.copy-doc .copy-btn { position: static; }
+.copy-toolbar { display: flex; justify-content: flex-end; margin: 0 0 8px; }
+.copy-block pre.snippet { padding-top: 44px; }
 .docs-list { max-width: 46rem; }
 .docs-list li { margin: 0.35rem 0; }
 .prov {
@@ -346,9 +376,16 @@ export function layout(opts: {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter+Tight:wght@400;600;700&display=swap"
           rel="stylesheet"
+          media="print"
+          onload="this.media='all'"
         />
+        <noscript
+          ><link
+            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter+Tight:wght@400;600;700&display=swap"
+            rel="stylesheet"
+        /></noscript>
         <style>
           ${raw(css)}
         </style>
@@ -375,6 +412,9 @@ export function layout(opts: {
             <div>X-Content-Origin: synthetic · no percent-agreed</div>
           </footer>
         </div>
+        <script>
+          ${raw(COPY_SCRIPT)}
+        </script>
       </body>
     </html>`;
 }

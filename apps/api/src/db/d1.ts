@@ -33,7 +33,19 @@ export function createD1(db: D1Binding): SqlClient {
   );
 }
 
+const APPLIED_SCHEMA = "0001_init.sql";
+
 export async function migrateD1(db: D1Binding): Promise<void> {
+  try {
+    const applied = await db
+      .prepare("SELECT 1 AS ok FROM schema_migrations WHERE filename = ?")
+      .bind(APPLIED_SCHEMA)
+      .all();
+    if ((applied.results ?? []).length > 0) return;
+  } catch {
+    // schema_migrations does not exist yet
+  }
+
   // D1 exec() treats newlines as statement boundaries, so apply one
   // flattened statement at a time via prepare().
   for (const statement of splitSqlStatements(SQLITE_SCHEMA)) {

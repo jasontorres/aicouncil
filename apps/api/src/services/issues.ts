@@ -71,6 +71,15 @@ export function issuesService(sql: SqlClient) {
   return {
     async promoteDue(now = new Date()) {
       const today = manilaToday(now);
+      const due = await sql.query<{ ok: number }>(
+        `SELECT 1 AS ok FROM issues
+         WHERE status = 'draft'
+           AND agenda_date IS NOT NULL
+           AND agenda_date <= $1::date
+         LIMIT 1`,
+        [today],
+      );
+      if (!due[0]) return today;
       await sql.exec(
         `UPDATE issues
          SET listed = true,

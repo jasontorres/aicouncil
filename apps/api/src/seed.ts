@@ -260,11 +260,41 @@ export const ARCHIVED_ISSUE_SLUGS = [SEED_ISSUE.slug, FLOOD_ISSUE.slug] as const
 
 export type SeededIssue = { issueId: string; packId: string; slug: string };
 
+const SEED_SLUGS = [SEED_ISSUE.slug, FLOOD_ISSUE.slug, BARANGAY_ISSUE.slug, PAX_ISSUE.slug] as const;
+
+function seededFromRow(row: { id: string; context_pack_id: string; slug: string }): SeededIssue {
+  return { issueId: row.id, packId: row.context_pack_id, slug: row.slug };
+}
+
 export async function seedClosedArena(sql: SqlClient): Promise<{
   issueId: string;
   packId: string;
   issues: { waste: SeededIssue; flood: SeededIssue; barangay: SeededIssue; pax: SeededIssue };
 }> {
+  const existing = await sql.query<{ slug: string; id: string; context_pack_id: string }>(
+    `SELECT slug, id, context_pack_id FROM issues WHERE slug IN ($1, $2, $3, $4)`,
+    [...SEED_SLUGS],
+  );
+  if (existing.length === SEED_SLUGS.length) {
+    const bySlug = new Map(existing.map((row) => [row.slug, row]));
+    const wasteRow = bySlug.get(SEED_ISSUE.slug);
+    const floodRow = bySlug.get(FLOOD_ISSUE.slug);
+    const barangayRow = bySlug.get(BARANGAY_ISSUE.slug);
+    const paxRow = bySlug.get(PAX_ISSUE.slug);
+    if (wasteRow && floodRow && barangayRow && paxRow) {
+      return {
+        issueId: wasteRow.id,
+        packId: wasteRow.context_pack_id,
+        issues: {
+          waste: seededFromRow(wasteRow),
+          flood: seededFromRow(floodRow),
+          barangay: seededFromRow(barangayRow),
+          pax: seededFromRow(paxRow),
+        },
+      };
+    }
+  }
+
   const waste = await ensureIssue(sql, {
     ...SEED_ISSUE,
     pack: METRO_MANILA_WASTE_PACK,

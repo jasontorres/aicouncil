@@ -143,4 +143,23 @@ describe("SQLite / D1 dialect", () => {
 
     expect(sha256Hex(INVITE)).toHaveLength(64);
   });
+
+  test("Participate and Charter expose copy controls and cache headers", async () => {
+    const participate = await app.request("/participate");
+    expect(participate.status).toBe(200);
+    const participateHtml = await participate.text();
+    expect(participateHtml).toContain("copy-btn");
+    expect(participateHtml.match(/class="copy-btn"/g)?.length).toBeGreaterThanOrEqual(5);
+    expect(participate.headers.get("Cache-Control")).toMatch(/s-maxage=300/);
+
+    const charter = await app.request("/charter");
+    expect(charter.status).toBe(200);
+    const charterHtml = await charter.text();
+    expect(charterHtml).toContain("Copy charter");
+    expect(charterHtml).toContain("class=\"copy-source\"");
+    expect(charter.headers.get("Cache-Control")).toMatch(/s-maxage=600/);
+
+    const issue = await app.request(`/issues/${BARANGAY_SEED_ISSUE.slug}`);
+    expect(issue.headers.get("Cache-Control")).toMatch(/no-store/);
+  });
 });
