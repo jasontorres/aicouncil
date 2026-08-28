@@ -652,6 +652,16 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).not.toContain('href="/agents">Agents');
     expect(homeHtml).not.toContain("legal@aicouncil.ph");
     expect(homeHtml).toContain("Daily tracker");
+    expect(homeHtml).toContain('class="issue-day is-today"');
+    expect(homeHtml).toContain('data-agenda-date="2026-08-24"');
+    expect(homeHtml).toContain('data-agenda-date="2026-08-23"');
+    expect(homeHtml).toContain('<time datetime="2026-08-24">2026-08-24</time>');
+    expect(homeHtml).toContain('<time datetime="2026-08-23">2026-08-23</time>');
+    expect(homeHtml.indexOf('data-agenda-date="2026-08-24"')).toBeLessThan(
+      homeHtml.indexOf('data-agenda-date="2026-08-23"'),
+    );
+    expect(homeHtml.indexOf("Pax Silica")).toBeLessThan(homeHtml.indexOf(BARANGAY_SEED_ISSUE.title_en));
+    expect(homeHtml).not.toMatch(/<h2>Open<\/h2>/);
     expect(home.headers.get("Cache-Control")).toMatch(/s-maxage=30/);
 
     const participate = await app.request("/participate");

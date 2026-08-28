@@ -14,6 +14,7 @@ import { predictionsService, recordsService } from "../services/records.js";
 import type { PositionRow, ResponseRow } from "../services/deliberation.js";
 import { param } from "../lib/params.js";
 import { registerAgentService } from "../services/agents.js";
+import { formatAgendaHeading, groupByAgendaDate } from "../lib/manila.js";
 
 function mdLite(src: string) {
   const blocks = src.split(/\n{2,}/);
@@ -53,6 +54,18 @@ function commentCount(n: number | undefined): string {
   return `${v} comments`;
 }
 
+function linkedIssueRow(issue: { slug: string; title_en: string; comment_count?: number }) {
+  return html`<article class="issue-row">
+    <a class="issue-title" href="/issues/${issue.slug}">${issue.title_en}</a>
+    <span class="pill">${commentCount(issue.comment_count)}</span>
+  </article>`;
+}
+
+function issueDayHeading(date: string | null, today: string) {
+  const { label, aside } = formatAgendaHeading(date, today);
+  return html`<h2>${label}${aside ? html` <time datetime="${aside}">${aside}</time>` : ""}</h2>`;
+}
+
 function nestedReplies(
   all: ResponseRow[],
   parentType: string,
@@ -82,7 +95,8 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
     const sql = c.get("sql");
     const svc = issuesService(sql);
     const tracker = await svc.tracker();
-    const rest = tracker.recent;
+    const pastDays = groupByAgendaDate(tracker.recent);
+    const upcomingDays = groupByAgendaDate(tracker.queue, "asc");
     setCache(c, 30);
     return c.html(
       layout({
@@ -100,39 +114,31 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
               <a href="/tracker">Daily tracker</a> · <a href="/participate">Participate</a>.
             </p>
           </div>
-          <h2>Today</h2>
-          ${tracker.today_issues.length === 0
-            ? html`<p class="section-note">No Issues dated ${tracker.today}. Curator: <a href="/CURATOR.md">CURATOR.md</a>.</p>`
-            : html`<div class="issue-list">
-                ${tracker.today_issues.map(
+          <section class="issue-day is-today" data-agenda-date="${tracker.today}">
+            ${issueDayHeading(tracker.today, tracker.today)}
+            ${tracker.today_issues.length === 0
+              ? html`<p class="section-note">No Issues dated ${tracker.today}. Curator: <a href="/CURATOR.md">CURATOR.md</a>.</p>`
+              : html`<div class="issue-list">${tracker.today_issues.map(linkedIssueRow)}</div>`}
+          </section>
+          ${pastDays.map(
+            (day) => html`<section class="issue-day" data-agenda-date="${day.date ?? "undated"}">
+              ${issueDayHeading(day.date, tracker.today)}
+              <div class="issue-list">${day.items.map(linkedIssueRow)}</div>
+            </section>`,
+          )}
+          ${upcomingDays.map(
+            (day) => html`<section class="issue-day issue-day-upcoming" data-agenda-date="${day.date ?? "undated"}">
+              <h2>Upcoming${day.date ? html` <time datetime="${day.date}">${day.date}</time>` : ""}</h2>
+              <div class="issue-list">
+                ${day.items.map(
                   (issue) => html`<article class="issue-row">
-                    <a class="issue-title" href="/issues/${issue.slug}">${issue.title_en}</a>
-                    <span class="pill">${commentCount(issue.comment_count)}</span>
+                    <span class="issue-title">${issue.title_en}</span>
+                    <span class="pill">${issue.agenda_date}</span>
                   </article>`,
                 )}
-              </div>`}
-          ${tracker.queue.length > 0
-            ? html`<h2>Upcoming</h2>
-                <div class="issue-list">
-                  ${tracker.queue.map(
-                    (issue) => html`<article class="issue-row">
-                      <span class="issue-title">${issue.title_en}</span>
-                      <span class="pill">${issue.agenda_date}</span>
-                    </article>`,
-                  )}
-                </div>`
-            : ""}
-          <h2>Open</h2>
-          ${rest.length === 0
-            ? html`<p class="section-note">No earlier open Issues.</p>`
-            : html`<div class="issue-list">
-                ${rest.map(
-                  (issue) => html`<article class="issue-row">
-                    <a class="issue-title" href="/issues/${issue.slug}">${issue.title_en}</a>
-                    <span class="pill">${commentCount(issue.comment_count)}</span>
-                  </article>`,
-                )}
-              </div>`}
+              </div>
+            </section>`,
+          )}
         `,
       }),
     );

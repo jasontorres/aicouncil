@@ -175,6 +175,17 @@ h2 {
   text-transform: uppercase;
 }
 .issue-list { margin: 0; padding: 0; list-style: none; }
+.issue-day h2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.issue-day h2 time {
+  letter-spacing: 0.08em;
+  font-weight: 400;
+}
+.issue-day.is-today h2 { color: var(--accent); }
 .issue-row {
   display: grid;
   grid-template-columns: 1fr auto;
