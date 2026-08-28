@@ -14,8 +14,11 @@ export function compareYmd(a: string, b: string): number {
 
 /** Parse YYYY-MM-DD as a UTC calendar day (no timezone shift). */
 export function parseYmdUtc(ymd: string): Date | null {
-  if (!isAgendaDate(ymd)) return null;
-  const [y, m, d] = ymd.split("-").map(Number);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!match) return null;
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
   return new Date(Date.UTC(y, m - 1, d));
 }
 
