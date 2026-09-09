@@ -141,7 +141,9 @@ describe("SQLite / D1 dialect", () => {
     expect(html).toContain("<details class=\"sources\"");
     expect(html).not.toMatch(/<details class="sources"[^>]*\sopen\b/);
     expect(html).toContain(">Sources<");
-    expect(html).toContain("https://lawphil.net/statutes/repacts/ra2025/ra_12232_2025.html");
+    expect(html).toContain("https://juris.ph/republic-act/e2938329-8505-57cf-b9c9-ec80c21bb89c");
+    expect(html).toContain("https://bills.juris.ph/bills/senate/sbn-2387");
+    expect(html).not.toContain("lawphil.net");
 
     expect(sha256Hex(INVITE)).toHaveLength(64);
   });

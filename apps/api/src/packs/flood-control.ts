@@ -14,8 +14,8 @@ export const FLOOD_CONTROL_PACK: ContextPack = contextPackSchema.parse({
       kind: "statute",
       title: "Republic Act No. 10121 — Philippine Disaster Risk Reduction and Management Act of 2010",
       citation: "R.A. 10121 (2010)",
-      url: "https://www.officialgazette.gov.ph/2010/05/27/republic-act-no-10121/",
-      publisher: "Official Gazette of the Philippines",
+      url: "https://juris.ph/republic-act/979152e2-1fdd-57fd-8eeb-739ff9bd95a6",
+      publisher: "Juris.ph / Congress of the Philippines",
       excerpt:
         "RA 10121 establishes the National Disaster Risk Reduction and Management framework and the NDRRMC. It assigns disaster-risk reduction and climate-adaptation roles across national agencies and LGUs, including prevention and mitigation works. It does not, by itself, appropriate a 2026 flood-control peso envelope or designate DPWH as the sole builder of every flood structure.",
     }),
@@ -24,8 +24,8 @@ export const FLOOD_CONTROL_PACK: ContextPack = contextPackSchema.parse({
       kind: "statute",
       title: "Republic Act No. 7160 — Local Government Code of 1991",
       citation: "R.A. 7160",
-      url: "https://www.officialgazette.gov.ph/1991/10/10/republic-act-no-7160/",
-      publisher: "Official Gazette of the Philippines",
+      url: "https://juris.ph/republic-act/f4ffef63-9f73-5004-b3e2-8eb73472207d",
+      publisher: "Juris.ph / Congress of the Philippines",
       excerpt:
         "The Local Government Code devolves basic services and facilities, including drainage, flood control at the local scale, and local infrastructure, to provinces, cities, and municipalities, subject to national standards and funding. A national flood-control program that ignores LGU siting, right-of-way, and maintenance duties will fail at the barangay outfall even if a DPWH contract is let.",
     }),
@@ -44,8 +44,8 @@ export const FLOOD_CONTROL_PACK: ContextPack = contextPackSchema.parse({
       kind: "statute",
       title: "Republic Act No. 9184 — Government Procurement Reform Act",
       citation: "R.A. 9184 (2003) and its IRR",
-      url: "https://www.officialgazette.gov.ph/2003/01/10/republic-act-no-9184-s-2003/",
-      publisher: "Official Gazette of the Philippines",
+      url: "https://juris.ph/republic-act/1a959654-dbd1-5b0d-990a-40ec0b78aa5c",
+      publisher: "Juris.ph / Congress of the Philippines",
       excerpt:
         "RA 9184 and its IRR require competitive public bidding as the default mode, with limited alternative methods, and impose transparency, eligibility, and contract-implementation rules on infrastructure. Flood-control packages that cannot be located, measured, or photographed after award are a procurement-control failure, not merely a communications failure.",
     }),
@@ -77,7 +77,7 @@ export const FLOOD_CONTROL_PACK: ContextPack = contextPackSchema.parse({
       citation: "GAA / NEP DPWH flood-management lines — pending_verification of 2026 line items",
       publisher: "Congress of the Philippines / DBM",
       excerpt:
-        "Each GAA appropriates DPWH and related flood-control, drainage, and slope-protection items. Phase 1 does not pin the 2026 peso total. Multiple Congresses have also filed measures on geotagging, project listing, and special audit of flood-control items. Agents citing a specific bill number must still name it in prior_art; verification_status will be pending_verification until the Bills adapter is live.",
+        "Each GAA appropriates DPWH and related flood-control, drainage, and slope-protection items. Phase 1 does not pin the 2026 peso total. Multiple Congresses have also filed measures on geotagging, project listing, and special audit of flood-control items. Agents citing a specific bill number must still name it in prior_art; look the filing up at https://bills.juris.ph/api.",
       note: "pending_verification",
     }),
     el({

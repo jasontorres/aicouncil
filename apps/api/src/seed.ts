@@ -30,8 +30,8 @@ export const METRO_MANILA_WASTE_PACK: ContextPack = contextPackSchema.parse({
       kind: "statute",
       title: "Republic Act No. 9003 — Ecological Solid Waste Management Act of 2000",
       citation: "R.A. 9003 (2001)",
-      url: "https://www.officialgazette.gov.ph/2001/01/26/republic-act-no-9003-s-2001/",
-      publisher: "Official Gazette of the Philippines",
+      url: "https://juris.ph/republic-act/090e97b9-9a4e-5e04-b53f-3cb16694adcc",
+      publisher: "Juris.ph / Congress of the Philippines",
       excerpt:
         "RA 9003 declares a systematic, comprehensive, and ecological solid waste management program. It requires LGUs to divert solid waste through reuse, recycling, and composting; to close open dumps; and to establish materials recovery facilities. National policy is to set guidelines and targets; actual collection, segregation, and disposal remain primarily LGU duties, with the National Solid Waste Management Commission providing coordination.",
     }),
@@ -40,7 +40,8 @@ export const METRO_MANILA_WASTE_PACK: ContextPack = contextPackSchema.parse({
       kind: "statute",
       title: "Republic Act No. 7160 — Local Government Code of 1991",
       citation: "R.A. 7160",
-      publisher: "Official Gazette of the Philippines",
+      url: "https://juris.ph/republic-act/f4ffef63-9f73-5004-b3e2-8eb73472207d",
+      publisher: "Juris.ph / Congress of the Philippines",
       excerpt:
         "The Local Government Code devolves basic services including solid waste collection and disposal to cities and municipalities. Metro Manila LGUs therefore hold the primary operational duty, even when regional bodies such as MMDA coordinate across city boundaries. Any national or regional facility still needs LGU cooperation on siting, collection routing, and host-community arrangements.",
     }),
@@ -49,7 +50,8 @@ export const METRO_MANILA_WASTE_PACK: ContextPack = contextPackSchema.parse({
       kind: "statute",
       title: "Republic Act No. 8749 — Philippine Clean Air Act of 1999",
       citation: "R.A. 8749",
-      publisher: "Official Gazette of the Philippines",
+      url: "https://juris.ph/republic-act/7bf989a9-b214-5cc6-9e64-bd8f50d105f3",
+      publisher: "Juris.ph / Congress of the Philippines",
       excerpt:
         "The Clean Air Act restricts incineration of municipal, biomedical, and hazardous waste, with limited exceptions later addressed by subsequent statutes. Waste-to-energy proposals for Metro Manila must be read against this incineration policy, DENR emission standards, and any later specific WTE authorizing law. Agents must not treat WTE as automatically authorized by RA 9003 alone.",
     }),
@@ -68,10 +70,10 @@ export const METRO_MANILA_WASTE_PACK: ContextPack = contextPackSchema.parse({
       source_id: "bill-wte-framework",
       kind: "bill",
       title: "In-flight national waste-to-energy framework bills (various Congresses)",
-      citation: "House/Senate WTE measures (pending_verification — Bills MCP not wired)",
+      citation: "House/Senate WTE measures (look up current filings at bills.juris.ph/api)",
       publisher: "Congress of the Philippines",
       excerpt:
-        "Multiple House and Senate measures across recent Congresses have sought to clarify the legality of waste-to-energy facilities, emissions controls, and host LGU sharing. Phase 1 cannot verify the current filing number or status against bills.juris.ph. Agents citing a specific bill must still name it in prior_art; verification_status will be pending_verification until the Bills adapter is live.",
+        "Multiple House and Senate measures across recent Congresses have sought to clarify the legality of waste-to-energy facilities, emissions controls, and host LGU sharing. Look current filings up at https://bills.juris.ph/api. Agents citing a specific bill must still name it in prior_art; verification_status stays pending_verification until that adapter writes verified.",
       note: "pending_verification",
     }),
     el({

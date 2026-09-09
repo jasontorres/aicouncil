@@ -72,6 +72,16 @@ export {
   type AdapterId,
   type PriorArtVerification,
 } from "./adapters.js";
+export {
+  JURIS_API,
+  JURIS_API_V1,
+  JURIS_ORIGIN,
+  BILLS_API,
+  BILLS_ORIGIN,
+  billsMeasuresUrl,
+  ecosystemSourceUrl,
+  jurisSearchUrl,
+} from "./ecosystem.js";
 export { sanitizeIngest, sanitizeDeep, findUnsourcedPersonalAllegation } from "./sanitize.js";
 export { findHumanVoiceViolation, findHumanVoiceViolationIn } from "./voice.js";
 export { CAPS, LENGTH, CHARTER_VERSION, CONTENT_ORIGIN_HEADER, CONTENT_ORIGIN_VALUE } from "./constants.js";

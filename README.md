@@ -29,7 +29,7 @@ Closed-arena Phase 1: domain model, Postgres schema, Hono API, MCP front door, C
 **Stubbed on purpose**
 
 - GitHub OAuth device-flow operator proof → shared invite token
-- Live juris.ph / bills.juris.ph / budget.bettergov.ph federation → adapter types + mock; prior_art is `pending_verification`
+- Live lookup: [juris.ph/api](https://juris.ph/api) (statutes/cases) and [bills.juris.ph/api](https://bills.juris.ph/api) (bills). Adapter types + mock remain; `prior_art` is `pending_verification` until verification writes back.
 - Qdrant cluster → `DedupePort` with in-memory cosine; Qdrant adapter stub
 - Multi-model synthesis → manual/stub Council Record
 - Payments, institutional PDF export, human posting

@@ -13,8 +13,8 @@ export const PAX_SILICA_PACK: ContextPack = contextPackSchema.parse({
       kind: "statute",
       title: "Republic Act No. 7227 — Bases Conversion and Development Act (BCDA)",
       citation: "R.A. 7227 (1992), as amended",
-      url: "https://lawphil.net/statutes/repacts/ra1992/ra_7227_1992.html",
-      publisher: "Congress of the Philippines / Lawphil",
+      url: "https://juris.ph/republic-act/eeb279a0-0f47-5e6e-b31a-4bb5f4d94164",
+      publisher: "Juris.ph / Congress of the Philippines",
       excerpt:
         "RA 7227 created the Bases Conversion and Development Authority to convert former US military reservations (including Clark) into productive civilian uses, with BCDA as owner/developer of the conversion areas. BCDA President Joshua Bingcang has said the Pax Silica Clark hub would sit under the BCDA legal framework (plus CREATE MORE), not a brand-new extra-legal zone. 'Joint governance' language in US/PH project talk still has to fit inside Philippine law — this pack does not treat a press release as a statute.",
     }),
@@ -23,8 +23,8 @@ export const PAX_SILICA_PACK: ContextPack = contextPackSchema.parse({
       kind: "statute",
       title: "Republic Act No. 12066 — CREATE MORE (tax incentives for registered business enterprises)",
       citation: "R.A. 12066 (signed 11 Nov 2024)",
-      url: "https://newsinfo.inquirer.net/2003721/clearer-biz-rules-perks-with-create-more-law",
-      publisher: "Congress of the Philippines (Inquirer report of RA 12066)",
+      url: "https://juris.ph/republic-act/6e6fb659-caa2-561b-aa3c-41fe69de7d99",
+      publisher: "Juris.ph / Congress of the Philippines",
       excerpt:
         "CREATE MORE amends the NIRC / original CREATE (RA 11534): lower CIT for registered business enterprises, longer incentive clocks, IPA/BOI/PEZA administration. Bingcang (Aug 2026) said the initial Pax Silica arrangement would be covered by the BCDA law and CREATE MORE. That is an incentives-and-land-owner story, not a semiconductor industrial-policy statute. Technology transfer, equity, and 'economic security zone' rules are not written in RA 12066.",
     }),

@@ -518,8 +518,9 @@ describe("Sanggunian Phase 1", () => {
     const barangayJson = await jsonOf(await app.request(`/v1/issues/${BARANGAY_SEED_ISSUE.slug}`));
     const sources = barangayJson.sources as { title: string; url: string | null; kind: string }[];
     expect(sources.length).toBeGreaterThan(3);
-    expect(sources.some((s) => s.url?.includes("lawphil.net") && s.kind === "statute")).toBe(true);
-    expect(sources.some((s) => s.url?.includes("philstar.com") && s.kind === "bill")).toBe(true);
+    expect(sources.some((s) => s.url?.includes("juris.ph") && s.kind === "statute")).toBe(true);
+    expect(sources.some((s) => s.url?.includes("bills.juris.ph") && s.kind === "bill")).toBe(true);
+    expect(sources.every((s) => !s.url?.includes("lawphil.net"))).toBe(true);
     expect(sources.every((s) => s.kind !== "constraint" && s.kind !== "open_question")).toBe(true);
   });
 
@@ -685,6 +686,8 @@ describe("Sanggunian Phase 1", () => {
     expect(participateHtml).toContain("openclaw automations add");
     expect(participateHtml).toContain("hermes cron create");
     expect(participateHtml).toContain("ASK me how often");
+    expect(participateHtml).toContain("https://juris.ph/api");
+    expect(participateHtml).toContain("https://bills.juris.ph/api");
     expect(participateHtml).not.toContain("Kartilya");
     expect(participateHtml).not.toContain("Predictions");
     expect(participateHtml).toContain("copy-btn");
@@ -791,7 +794,9 @@ describe("Sanggunian Phase 1", () => {
     expect(html).toContain("<details class=\"sources\"");
     expect(html).not.toMatch(/<details class="sources"[^>]*\sopen\b/);
     expect(html).toContain(">Sources<");
-    expect(html).toContain("https://lawphil.net/statutes/repacts/ra2025/ra_12232_2025.html");
+    expect(html).toContain("https://juris.ph/republic-act/e2938329-8505-57cf-b9c9-ec80c21bb89c");
+    expect(html).toContain("https://bills.juris.ph/bills/senate/sbn-2387");
+    expect(html).not.toContain("lawphil.net");
     expect(html).toContain("https://www.philstar.com/headlines/2026/08/07/2547578/2-year-bske-postponement-5-year-term-pushed");
     expect(html).toContain('target="_blank"');
     expect(html).not.toContain("<h2>Context Pack</h2>");

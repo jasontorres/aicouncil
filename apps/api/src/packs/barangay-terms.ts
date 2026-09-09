@@ -3,7 +3,7 @@ import { packElement as el } from "./helpers.js";
 
 /**
  * Short, readable pack for the 2026 barangay/SK term-extension / postponement fight.
- * Bills MCP is not wired; bill numbers below are from public news of record (Aug 2026).
+ * Statutes/cases: juris.ph. Bills: bills.juris.ph (BatasWatch).
  */
 export const BARANGAY_TERMS_PACK: ContextPack = contextPackSchema.parse({
   version: "1",
@@ -13,8 +13,8 @@ export const BARANGAY_TERMS_PACK: ContextPack = contextPackSchema.parse({
       kind: "statute",
       title: "Republic Act No. 12232 — four-year barangay/SK term; next BSKE first Monday of November 2026",
       citation: "R.A. 12232 (approved 13 Aug 2025)",
-      url: "https://lawphil.net/statutes/repacts/ra2025/ra_12232_2025.html",
-      publisher: "Lawphil / Congress of the Philippines",
+      url: "https://juris.ph/republic-act/e2938329-8505-57cf-b9c9-ec80c21bb89c",
+      publisher: "Juris.ph / Congress of the Philippines",
       excerpt:
         "RA 12232 sets the term of elected barangay and Sangguniang Kabataan officials at four years (barangay: max three consecutive terms in the same post; SK: max one term). The next regular BSKE is the first Monday of November 2026 (2 Nov 2026) and every four years thereafter. Incumbents hold over until successors are elected and qualified. Incumbents on a third consecutive barangay term cannot run for the same post in November 2026. This law itself already postponed the 2025 BSKE and lengthened the term from three years to four.",
     }),
@@ -34,9 +34,9 @@ export const BARANGAY_TERMS_PACK: ContextPack = contextPackSchema.parse({
       source_id: "sb-2387",
       kind: "bill",
       title: "Senate Bill No. 2387 (Escudero) — five-year term + move Nov 2026 BSKE to Nov 2028",
-      citation: "S.B. 2387 (filed ~6 Aug 2026) — pending_verification, Bills MCP not wired",
-      publisher: "Senate of the Philippines (as reported by Philstar / Malaya)",
-      url: "https://www.philstar.com/headlines/2026/08/07/2547578/2-year-bske-postponement-5-year-term-pushed",
+      citation: "S.B. 2387 (filed ~6 Aug 2026)",
+      publisher: "BatasWatch / Senate of the Philippines",
+      url: "https://bills.juris.ph/bills/senate/sbn-2387",
       excerpt:
         "Sen. Francis Escudero's SB 2387 would amend RA 12232: barangay and SK terms become five years (term limits kept: three consecutive barangay terms; SK still one term). Next BSKE moves from the first Monday of November 2026 to the first Monday of November 2028, then every five years. Reporting also says incumbents' extra two years would count as completing a term, and third-term barangay officials would be ineligible to run for the same post in 2028. Explanatory note: longer tenure for community programs; frequent elections disrupt projects. Not enacted as of pack retrieve.",
       note: "pending_verification",
@@ -45,9 +45,9 @@ export const BARANGAY_TERMS_PACK: ContextPack = contextPackSchema.parse({
       source_id: "hb-10591",
       kind: "bill",
       title: "House Bill No. 10591 (Benitez + dozens) — postpone BSKE to last Monday of November 2028",
-      citation: "H.B. 10591 — pending_verification",
-      publisher: "House of Representatives (Manila Bulletin / Malaya)",
-      url: "https://mb.com.ph/2026/08/06/3-house-bills-seek-bske-postponement-all-point-to-the-same-reason",
+      citation: "H.B. 10591",
+      publisher: "BatasWatch / House of Representatives",
+      url: "https://bills.juris.ph/bills/house/hb10591",
       excerpt:
         "HB 10591, filed by Negros Occidental Rep. Javier Miguel Benitez with dozens of co-authors, seeks to move the 2 Nov 2026 BSKE to the last Monday of November 2028. House colleagues invoked an 'energy emergency' and higher fuel costs tied to the US–Iran war. Pending, Committee on Suffrage and Electoral Reforms. Not enacted.",
       note: "pending_verification",
@@ -56,9 +56,9 @@ export const BARANGAY_TERMS_PACK: ContextPack = contextPackSchema.parse({
       source_id: "hb-10583",
       kind: "bill",
       title: "House Bill No. 10583 (Hernandez et al.) — postpone BSKE to last Monday of May 2027",
-      citation: "H.B. 10583 — pending_verification",
-      publisher: "House of Representatives (Manila Bulletin)",
-      url: "https://mb.com.ph/2026/08/06/3-house-bills-seek-bske-postponement-all-point-to-the-same-reason",
+      citation: "H.B. 10583",
+      publisher: "BatasWatch / House of Representatives",
+      url: "https://bills.juris.ph/bills/house/hb10583",
       excerpt:
         "HB 10583 (Senior Deputy Speaker Ferdinand Hernandez and co-authors) would hold the next BSKE on the last Monday of May 2027 — a shorter slip than the 2028 House bills. Same committee. Not enacted.",
       note: "pending_verification",
@@ -67,9 +67,9 @@ export const BARANGAY_TERMS_PACK: ContextPack = contextPackSchema.parse({
       source_id: "hb-10584",
       kind: "bill",
       title: "House Bill No. 10584 (Alano) — postpone BSKE to last Monday of November 2028",
-      citation: "H.B. 10584 — pending_verification",
-      publisher: "House of Representatives (Manila Bulletin)",
-      url: "https://mb.com.ph/2026/08/06/3-house-bills-seek-bske-postponement-all-point-to-the-same-reason",
+      citation: "H.B. 10584",
+      publisher: "BatasWatch / House of Representatives",
+      url: "https://bills.juris.ph/bills/house/hb10584",
       excerpt:
         "HB 10584 (Basilan Rep. Ustadz Yusop Alano) also seeks the last Monday of November 2028. Authors cite Macalintal: postponement only for important, substantial, or compelling reasons. Not enacted.",
       note: "pending_verification",
@@ -78,9 +78,9 @@ export const BARANGAY_TERMS_PACK: ContextPack = contextPackSchema.parse({
       source_id: "hb-10376",
       kind: "bill",
       title: "House Bill No. 10376 (Zamora) — postpone 2026 BSKE, citing economic recovery",
-      citation: "H.B. 10376 — pending_verification",
-      publisher: "House of Representatives (Philippine Daily Inquirer)",
-      url: "https://www.inquirer.net/484521/comelec-to-congress-decide-on-fate-of-2026-barangay-sk-polls-by-september/",
+      citation: "H.B. 10376",
+      publisher: "BatasWatch / House of Representatives",
+      url: "https://bills.juris.ph/bills/house/hb10376",
       excerpt:
         "San Juan Rep. Ysabel Zamora, among the authors of HB 10376, argued in committee that the elections should be postponed so government can focus on economic recovery. Exact reset date is not pinned in this pack beyond that reporting. Not enacted.",
       note: "pending_verification",
@@ -122,8 +122,8 @@ export const BARANGAY_TERMS_PACK: ContextPack = contextPackSchema.parse({
       kind: "jurisprudence",
       title: "Macalintal v. COMELEC, G.R. No. 263590 (2023) — postponement needs a real reason",
       citation: "G.R. No. 263590 / 263673 (June 2023)",
-      url: "https://lawphil.net/judjuris/juri2023/jun2023/gr_263590_2023.html",
-      publisher: "Supreme Court of the Philippines",
+      url: "https://juris.ph/case/0003c0a3-1b35-564f-a975-6276c08e6cc3",
+      publisher: "Juris.ph / Supreme Court of the Philippines",
       excerpt:
         "The Court struck down RA 11935 (the 2022 BSKE postponement). House bills in 2026 themselves quote the test: an election may be postponed only for important, substantial, or compelling reasons. Superficial reasons — election fatigue, 'divisiveness,' shortness of the existing term — are not enough by themselves. Public emergency can count, but only to the extent strictly required. This pack does not decide whether an 'energy emergency' meets that test.",
     }),

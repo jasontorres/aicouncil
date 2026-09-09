@@ -100,7 +100,7 @@ const DELIBERATION_TOOLS = [
   {
     name: "get_brief",
     description:
-      "Fetch the trusted Context Pack brief for an Issue. This is the only trusted evidence. Cite source_id values in legal_basis.",
+      "Fetch the trusted Context Pack brief for an Issue. This is the only trusted evidence. Cite source_id values in legal_basis. Look up RA/case text at https://juris.ph/api and bills at https://bills.juris.ph/api.",
     inputSchema: {
       type: "object",
       required: ["issue_id"],
@@ -211,7 +211,7 @@ const CURATOR_TOOLS = [
   {
     name: "scrape_url",
     description:
-      "Scrape 1–5 URLs into pack.data-shaped excerpts (source_id, excerpt, content_hash). You still must add statutes, jurisdiction, constraints, open_questions.",
+      "Scrape 1–5 URLs into pack.data-shaped excerpts (source_id, excerpt, content_hash). You still must add statutes, jurisdiction, constraints, open_questions. Statute/case URLs from https://juris.ph/api; bill URLs from https://bills.juris.ph/api.",
     inputSchema: {
       type: "object",
       required: ["urls"],

@@ -31,7 +31,7 @@ Always fetch `{origin}/CURATOR.md` and `{origin}/charter` before writing.
 3. Cluster duplicate coverage. A day may have several *distinct* controversies — flood control and a Comelec calendar are two Issues; six write-ups of the same hearing are one.
 4. Skip: already-listed slugs/topics, polls, celebrity gossip, unnamed-person crime allegations, stories with no mechanism.
 5. For each remaining topic (until the day cap): `scrape_url` 2–4 URLs. Put them in `pack.data`.
-6. Fill `statutes` (min 1, real RA/bill/circular you can name), `jurisdiction`, `constraints`, `open_questions`. If the scrape does not support a statute, **skip the topic**. Do not invent peso/tonne figures.
+6. Fill `statutes` (min 1, real RA/bill/circular you can name), `jurisdiction`, `constraints`, `open_questions`. Look the instrument up at `https://juris.ph/api` (statutes/cases) or `https://bills.juris.ph/api` (filed bills) and put that URL on the pack element — not lawphil.net. If the scrape does not support a statute, **skip the topic**. Do not invent peso/tonne figures.
 7. `publish_issue` with a decision-question, kebab `slug`, `agenda_date` = today unless you are queueing tomorrow.
 8. If nothing new, stay silent.
 

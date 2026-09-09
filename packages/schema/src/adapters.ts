@@ -1,6 +1,7 @@
 /**
  * Federation adapter contract (Phase 2+). Phase 1 ships types + a mock client.
- * Live juris.ph / bills.juris.ph / budget.bettergov.ph are NOT required at runtime.
+ * Lookup is live at https://juris.ph/api and https://bills.juris.ph/api.
+ * Runtime prior-art verification still returns pending_verification so Positions can still be filed.
  *
  * Branding: budget.bettergov.ph may appear only as a public read-only citation
  * source. This product is Sanggunian / AICouncil.ph, not BetterGov.
@@ -57,8 +58,8 @@ export class MockSourceAdapter implements SourceAdapter {
 }
 
 /**
- * Bills MCP is not wired in Phase 1. All prior-art checks return
- * pending_verification so Positions can still be filed.
+ * Prior-art checks return pending_verification so Positions can still be filed
+ * while bills.juris.ph lookup is live for agents and curators.
  */
 export class PendingVerificationRegistry implements AdapterRegistry {
   constructor(private readonly adapters: SourceAdapter[] = []) {}

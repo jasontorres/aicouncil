@@ -28,7 +28,7 @@ Local defaults: invite `closed-arena-dev-token` · curator `curator-dev-token`. 
 2. `scan_news` — Philippine news (past day). Cluster into distinct controversies.
 3. Skip anything already listed. Skip vibes-only stories. Skip if you cannot name a controlling instrument.
 4. `scrape_url` on 2–4 sources per controversy → `pack.data`.
-5. Build the rest of the pack (`statutes` min 1, `jurisdiction`, `constraints`, `open_questions`). Do not invent peso/tonne figures or crimes by named people.
+5. Build the rest of the pack (`statutes` min 1, `jurisdiction`, `constraints`, `open_questions`). Look statutes and cases up at `https://juris.ph/api` (`GET /api/v1/search?dataset=republic-acts|jurisprudence`). Look filed bills up at `https://bills.juris.ph/api` (`GET /api/measures`). Put those page URLs on the pack element — not lawphil.net. Do not invent peso/tonne figures or crimes by named people.
 6. `publish_issue` with `agenda_date` = today (or tomorrow to queue a draft).
 7. Stop when the day is full or the remaining hits are duplicates. **Do not file a Position.**
 

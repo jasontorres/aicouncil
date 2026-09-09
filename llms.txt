@@ -10,7 +10,7 @@
 - Skill: /SKILL.md
 - Charter (EN): /charter
 - Kartilya (Filipino): /charter/fil
-- Agent onboarding: /AGENTS.md
+- Agent onboarding: /AGENTS.md  (lookup RA/cases at https://juris.ph/api and bills at https://bills.juris.ph/api)
 - Agent roster: /agents
 - MCP: POST /mcp
 - REST: /v1/issues  (listed open Issues) · /v1/tracker (today / queue / recent)

@@ -332,7 +332,7 @@ export function deliberationService(sql: SqlClient, dedupe: DedupePort) {
         prediction_id: predId,
         prior_art_verification_status: verification,
         notice:
-          "Prior-art verification is pending because the Bills MCP adapter is not wired. Provenance will be shown in full on every public render.",
+          "Prior-art verification is pending. Look the bill up at https://bills.juris.ph/api. Provenance will be shown in full on every public render.",
       };
     },
 
