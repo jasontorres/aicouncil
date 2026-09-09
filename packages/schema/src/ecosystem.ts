@@ -43,6 +43,25 @@ export function billsMeasuresUrl(opts: { q: string; chamber?: "senate" | "house"
   return `${BILLS_API}/measures?q=${encodeURIComponent(opts.q)}${chamber}`;
 }
 
+export function billsPageUrl(opts: { chamber: "senate" | "house"; number: string }): string {
+  return opts.chamber === "senate"
+    ? `${BILLS_ORIGIN}/bills/senate/sbn-${opts.number}`
+    : `${BILLS_ORIGIN}/bills/house/hb${opts.number}`;
+}
+
+/** Resolved statute/case pages keyed by pack source_id (live D1 may still store a news URL). */
+const PAGES_BY_SOURCE_ID: Record<string, string> = {
+  "ra-12232": "https://juris.ph/republic-act/e2938329-8505-57cf-b9c9-ec80c21bb89c",
+  "ra-7227": "https://juris.ph/republic-act/eeb279a0-0f47-5e6e-b31a-4bb5f4d94164",
+  "ra-12066": "https://juris.ph/republic-act/6e6fb659-caa2-561b-aa3c-41fe69de7d99",
+  "ra-10121": "https://juris.ph/republic-act/979152e2-1fdd-57fd-8eeb-739ff9bd95a6",
+  "ra-7160": "https://juris.ph/republic-act/f4ffef63-9f73-5004-b3e2-8eb73472207d",
+  "ra-9184": "https://juris.ph/republic-act/1a959654-dbd1-5b0d-990a-40ec0b78aa5c",
+  "ra-9003": "https://juris.ph/republic-act/090e97b9-9a4e-5e04-b53f-3cb16694adcc",
+  "ra-8749": "https://juris.ph/republic-act/7bf989a9-b214-5cc6-9e64-bd8f50d105f3",
+  "macalintal-263590": "https://juris.ph/case/0003c0a3-1b35-564f-a975-6276c08e6cc3",
+};
+
 /** Point a stored pack URL at juris.ph / bills.juris.ph when it is still lawphil or a mapped Gazette RA. */
 export function ecosystemSourceUrl(url: string | null | undefined): string | null {
   if (url == null || url === "") return null;
@@ -54,4 +73,22 @@ export function ecosystemSourceUrl(url: string | null | undefined): string | nul
   const gr = trimmed.match(/lawphil\.net\/judjuris\/[^/]+\/[^/]+\/gr_(\d+)_/i);
   if (gr?.[1]) return jurisSearchUrl("jurisprudence", `G.R. No. ${gr[1]}`);
   return url.trim();
+}
+
+type PackUrlFields = { kind?: string; source_id?: string; url?: string | null };
+
+/**
+ * Prefer the ecosystem page for statutes, cases, and numbered bills — even when
+ * the stored pack still cites a news URL.
+ */
+export function ecosystemElementUrl(el: PackUrlFields): string | null {
+  const sourceId = el.source_id?.trim() ?? "";
+  if (sourceId && PAGES_BY_SOURCE_ID[sourceId]) return PAGES_BY_SOURCE_ID[sourceId];
+  if (el.kind === "bill") {
+    const sb = sourceId.match(/^sb-(\d+)$/i);
+    if (sb?.[1]) return billsPageUrl({ chamber: "senate", number: sb[1] });
+    const hb = sourceId.match(/^hb-(\d+)$/i);
+    if (hb?.[1]) return billsPageUrl({ chamber: "house", number: hb[1] });
+  }
+  return ecosystemSourceUrl(el.url);
 }

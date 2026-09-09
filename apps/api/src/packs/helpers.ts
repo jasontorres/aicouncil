@@ -1,5 +1,5 @@
 import type { ContextPack, PackElement } from "@aicouncil/schema";
-import { contextPackSchema, ecosystemSourceUrl } from "@aicouncil/schema";
+import { contextPackSchema, ecosystemElementUrl } from "@aicouncil/schema";
 import { contentHash } from "../lib/hash.js";
 
 export const PACK_RETRIEVED = "2026-08-23T00:00:00.000Z";
@@ -7,7 +7,7 @@ export const PACK_RETRIEVED = "2026-08-23T00:00:00.000Z";
 export function packElement(
   partial: Omit<PackElement, "retrieved_at" | "content_hash"> & { excerpt: string },
 ): PackElement {
-  const url = ecosystemSourceUrl(partial.url) ?? partial.url;
+  const url = ecosystemElementUrl(partial) ?? partial.url;
   return {
     ...partial,
     ...(url ? { url } : {}),
@@ -18,7 +18,7 @@ export function packElement(
 
 function rewritePackUrls(pack: ContextPack): ContextPack {
   const mapEl = (el: PackElement): PackElement => {
-    const url = ecosystemSourceUrl(el.url);
+    const url = ecosystemElementUrl(el);
     return url === el.url || url == null ? el : { ...el, url };
   };
   return {

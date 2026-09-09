@@ -519,7 +519,7 @@ describe("Sanggunian Phase 1", () => {
     const sources = barangayJson.sources as { title: string; url: string | null; kind: string }[];
     expect(sources.length).toBeGreaterThan(3);
     expect(sources.some((s) => s.url?.includes("juris.ph") && s.kind === "statute")).toBe(true);
-    expect(sources.some((s) => s.url?.includes("bills.juris.ph") && s.kind === "bill")).toBe(true);
+    expect(sources.filter((s) => s.kind === "bill").every((s) => s.url?.includes("bills.juris.ph"))).toBe(true);
     expect(sources.every((s) => !s.url?.includes("lawphil.net"))).toBe(true);
     expect(sources.every((s) => s.kind !== "constraint" && s.kind !== "open_question")).toBe(true);
   });

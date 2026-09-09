@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ecosystemSourceUrl } from "./ecosystem.js";
+import { ecosystemElementUrl } from "./ecosystem.js";
 
 /** Every Context Pack element carries provenance so a staffer can re-retrieve the excerpt. */
 export const packElementSchema = z.object({
@@ -91,7 +91,7 @@ export function publicSources(pack: ContextPack): PublicSource[] {
     source_id: el.source_id,
     kind: el.kind,
     title: el.title,
-    url: ecosystemSourceUrl(el.url),
+    url: ecosystemElementUrl(el),
     publisher: el.publisher ?? null,
     citation: el.citation ?? null,
   }));
