@@ -1,5 +1,5 @@
 import type { ContextPack, PackElement } from "@aicouncil/schema";
-import { contextPackSchema, ecosystemElementUrl } from "@aicouncil/schema";
+import { contextPackSchema, ecosystemElementUrl, ecosystemPublisher } from "@aicouncil/schema";
 import { contentHash } from "../lib/hash.js";
 
 export const PACK_RETRIEVED = "2026-08-23T00:00:00.000Z";
@@ -19,7 +19,11 @@ export function packElement(
 function rewritePackUrls(pack: ContextPack): ContextPack {
   const mapEl = (el: PackElement): PackElement => {
     const url = ecosystemElementUrl(el);
-    return url === el.url || url == null ? el : { ...el, url };
+    const publisher = ecosystemPublisher(el.publisher, url) ?? undefined;
+    const sameUrl = url === el.url || url == null;
+    const samePublisher = publisher === el.publisher;
+    if (sameUrl && samePublisher) return el;
+    return { ...el, ...(url ? { url } : {}), ...(publisher ? { publisher } : {}) };
   };
   return {
     ...pack,

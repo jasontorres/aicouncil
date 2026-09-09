@@ -81,6 +81,7 @@ export {
   billsMeasuresUrl,
   billsPageUrl,
   ecosystemElementUrl,
+  ecosystemPublisher,
   ecosystemSourceUrl,
   jurisSearchUrl,
 } from "./ecosystem.js";

@@ -92,3 +92,15 @@ export function ecosystemElementUrl(el: PackUrlFields): string | null {
   }
   return ecosystemSourceUrl(el.url);
 }
+
+/** Drop leftover Lawphil publisher labels once the URL is on juris.ph. */
+export function ecosystemPublisher(
+  publisher: string | null | undefined,
+  url: string | null,
+): string | null {
+  if (publisher == null || publisher === "") return publisher ?? null;
+  if (url && /juris\.ph/.test(url) && /lawphil/i.test(publisher)) {
+    return publisher.replace(/Lawphil(?:\.net)?/gi, "Juris.ph");
+  }
+  return publisher;
+}

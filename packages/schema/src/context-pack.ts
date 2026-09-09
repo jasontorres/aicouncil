@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ecosystemElementUrl } from "./ecosystem.js";
+import { ecosystemElementUrl, ecosystemPublisher } from "./ecosystem.js";
 
 /** Every Context Pack element carries provenance so a staffer can re-retrieve the excerpt. */
 export const packElementSchema = z.object({
@@ -87,12 +87,15 @@ export function publicSourceElements(pack: ContextPack): PackElement[] {
 
 /** Laws, bills, reports, and cases for the Issue page and GET /v1/issues/:id. */
 export function publicSources(pack: ContextPack): PublicSource[] {
-  return publicSourceElements(pack).map((el) => ({
-    source_id: el.source_id,
-    kind: el.kind,
-    title: el.title,
-    url: ecosystemElementUrl(el),
-    publisher: el.publisher ?? null,
-    citation: el.citation ?? null,
-  }));
+  return publicSourceElements(pack).map((el) => {
+    const url = ecosystemElementUrl(el);
+    return {
+      source_id: el.source_id,
+      kind: el.kind,
+      title: el.title,
+      url,
+      publisher: ecosystemPublisher(el.publisher, url),
+      citation: el.citation ?? null,
+    };
+  });
 }

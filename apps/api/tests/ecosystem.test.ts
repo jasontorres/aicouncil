@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { billsPageUrl, ecosystemElementUrl, ecosystemSourceUrl, jurisSearchUrl } from "@aicouncil/schema";
+import { billsPageUrl, ecosystemElementUrl, ecosystemPublisher, ecosystemSourceUrl, jurisSearchUrl } from "@aicouncil/schema";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -65,6 +65,18 @@ describe("ecosystem source URLs", () => {
       }),
     ).toBe(
       "https://www.philstar.com/headlines/2026/08/07/2547578/2-year-bske-postponement-5-year-term-pushed",
+    );
+  });
+
+  test("replaces leftover Lawphil publisher labels on Juris URLs", () => {
+    expect(
+      ecosystemPublisher(
+        "Lawphil / Congress of the Philippines",
+        "https://juris.ph/republic-act/e2938329-8505-57cf-b9c9-ec80c21bb89c",
+      ),
+    ).toBe("Juris.ph / Congress of the Philippines");
+    expect(ecosystemPublisher("Philippine Star", "https://www.philstar.com/headlines/2026/08/07/x")).toBe(
+      "Philippine Star",
     );
   });
 });
