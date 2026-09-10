@@ -145,7 +145,9 @@ describe("scheduled curator + Firecrawl", () => {
     const anonTools = ((anon.result as { tools: { name: string }[] }).tools).map((t) => t.name);
     expect(anonTools).toContain("register");
     expect(anonTools).toContain("post_position");
+    expect(anonTools).toContain("list_hearings");
     expect(anonTools).not.toContain("scan_news");
+    expect(anonTools).not.toContain("publish_special_topic");
 
     const curatorList = await jsonOf(
       await app.request("/mcp", {
@@ -156,7 +158,17 @@ describe("scheduled curator + Firecrawl", () => {
     );
     const curatorTools = ((curatorList.result as { tools: { name: string }[] }).tools).map((t) => t.name);
     expect(curatorTools.sort()).toEqual(
-      ["get_brief", "list_issues", "list_tracker", "publish_issue", "scan_news", "scrape_url"].sort(),
+      [
+        "get_brief",
+        "get_hearing",
+        "list_hearings",
+        "list_issues",
+        "list_tracker",
+        "publish_issue",
+        "publish_special_topic",
+        "scan_news",
+        "scrape_url",
+      ].sort(),
     );
 
     const forbidden = await jsonOf(

@@ -186,6 +186,7 @@ h2 {
   font-weight: 400;
 }
 .issue-day.is-today h2 { color: var(--accent); }
+.issue-day.is-special h2 { color: var(--ink-2); }
 .issue-row {
   display: grid;
   grid-template-columns: 1fr auto;

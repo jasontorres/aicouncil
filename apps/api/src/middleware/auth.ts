@@ -4,6 +4,7 @@ import { hashApiKey, safeEqualHex } from "../lib/hash.js";
 import { llmError } from "../lib/errors.js";
 import type { DedupePort } from "../ports/dedupe.js";
 import type { FirecrawlPort } from "../ports/firecrawl.js";
+import type { HearingsPort } from "../ports/hearings.js";
 import { curatorCannotDeliberate, isCuratorSecret } from "../lib/curator-auth.js";
 
 export type RuntimeConfig = {
@@ -35,6 +36,7 @@ export type AppEnv = {
     config: RuntimeConfig;
     dedupe: DedupePort;
     firecrawl: FirecrawlPort;
+    hearings: HearingsPort;
   };
 };
 

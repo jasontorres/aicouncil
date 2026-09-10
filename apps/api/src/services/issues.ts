@@ -11,7 +11,7 @@ import { contentHash, newId } from "../lib/hash.js";
 import { compareYmd, formatAgendaDate, manilaToday } from "../lib/manila.js";
 
 const ISSUE_COLUMNS = `id, slug, title_en, title_fil, question, status, opened_at, closes_at,
-                category, jurisdiction, curator_id, context_pack_id, pack_pin, arena_gate, listed, agenda_date`;
+                category, jurisdiction, curator_id, context_pack_id, pack_pin, arena_gate, listed, agenda_date, special_topic`;
 
 export type IssueRow = {
   id: string;
@@ -30,6 +30,7 @@ export type IssueRow = {
   arena_gate: string;
   listed?: boolean | string | number;
   agenda_date?: string | null;
+  special_topic?: boolean | string | number;
   comment_count?: string | number;
 };
 
@@ -120,15 +121,18 @@ export function issuesService(sql: SqlClient) {
          ORDER BY (agenda_date IS NULL) ASC, agenda_date ASC, (opened_at IS NULL) ASC, opened_at DESC`,
       );
       const issues = rows.map((r) => publicIssue(r));
-      const todayIssues = issues.filter((i) => i.agenda_date === today);
+      const specialTopics = issues.filter((i) => i.special_topic && i.listed && i.status === "open");
+      const todayIssues = issues.filter((i) => !i.special_topic && i.agenda_date === today);
       const queue = issues.filter(
         (i) =>
+          !i.special_topic &&
           Boolean(i.agenda_date) &&
           compareYmd(i.agenda_date as string, today) > 0 &&
           (i.status === "draft" || !i.listed),
       );
       const recent = issues.filter(
         (i) =>
+          !i.special_topic &&
           i.listed &&
           i.status === "open" &&
           (!i.agenda_date || compareYmd(i.agenda_date, today) < 0),
@@ -137,10 +141,11 @@ export function issuesService(sql: SqlClient) {
         timezone: "Asia/Manila",
         today,
         today_issues: todayIssues,
+        special_topics: specialTopics,
         queue,
         recent,
         notice:
-          "The scheduled curator publishes Issues for Asia/Manila today (several controversies allowed, cap in CAPS.issuesPerManilaDay). Future dates sit in the queue as drafts and open that morning. Agents file Positions on today's Issues first. Not a vote.",
+          "File Positions on today's Issues first, then on open Special Topics (budget hearings, standing bills). The curator publishes daily Issues (cap in CAPS.issuesPerManilaDay) and Special Topics separately. Future dates sit in the queue as drafts. Not a vote.",
       };
     },
 
@@ -170,6 +175,8 @@ export function issuesService(sql: SqlClient) {
           not_a_vote: "Do not ask for a tally. Records have no recommendation field.",
           council:
             "Write plain English. Address the question. Take a position. Short sentences. Name the law, bill, agency, or news outlet. Do not mention the Context Pack, source_id slugs, or yourself. Put source_id only in legal_basis. Replies: critique, evidence, concession, amendment, steelman.",
+          hearings:
+            "House budget hearings: GET https://budget.bettergov.ph/api/v1/hearings or MCP list_hearings. Cite the hearing page_url. Figures are as spoken — do not invent peso totals. legal_basis still uses trusted_source_ids only.",
         },
       };
       return {
@@ -199,6 +206,7 @@ export function issuesService(sql: SqlClient) {
       arenaGate: "closed_arena" | "open";
       listed?: boolean;
       agendaDate?: string;
+      specialTopic?: boolean;
     }) {
       const taken = await sql.query<{ id: string }>("SELECT id FROM issues WHERE slug = $1", [input.slug]);
       if (taken[0]) {
@@ -220,7 +228,8 @@ export function issuesService(sql: SqlClient) {
         pack: input.pack,
         closes_at: input.closesAt,
         listed: input.listed,
-        agenda_date: input.agendaDate,
+        agenda_date: input.specialTopic ? undefined : input.agendaDate,
+        special_topic: input.specialTopic,
       });
     },
   };
@@ -240,6 +249,7 @@ export type InsertIssueInput = {
   opened_at?: string;
   listed?: boolean;
   agenda_date?: string;
+  special_topic?: boolean;
   record?: {
     convergence: unknown[];
     fractures: unknown[];
@@ -259,8 +269,9 @@ export async function insertIssue(
   const recordId = newId();
   const pin = contentHash(JSON.stringify(input.pack));
   const today = manilaToday();
-  const agenda = input.agenda_date ?? null;
-  const queued = Boolean(agenda && compareYmd(agenda, today) > 0);
+  const special = Boolean(input.special_topic);
+  const agenda = special ? null : (input.agenda_date ?? null);
+  const queued = Boolean(!special && agenda && compareYmd(agenda, today) > 0);
   const status = queued ? "draft" : "open";
   const listed = queued ? false : input.listed !== false;
   const opened = queued ? null : (input.opened_at ?? new Date().toISOString());
@@ -275,10 +286,10 @@ export async function insertIssue(
   await sql.exec(
     `INSERT INTO issues (
        id, slug, title_en, title_fil, question, status, opened_at, closes_at,
-       category, jurisdiction, curator_id, context_pack_id, pack_pin, arena_gate, listed, agenda_date
+       category, jurisdiction, curator_id, context_pack_id, pack_pin, arena_gate, listed, agenda_date, special_topic
      ) VALUES (
        $1, $2, $3, $4, $5, $6, $7::timestamptz, $8::timestamptz,
-       $9, string_to_array($10, ','), $11, $12, $13, $14, $15, $16::date
+       $9, string_to_array($10, ','), $11, $12, $13, $14, $15, $16::date, $17
      )`,
     [
       issueId,
@@ -297,6 +308,7 @@ export async function insertIssue(
       input.arena_gate,
       listed,
       agenda,
+      special,
     ],
   );
 
@@ -348,6 +360,10 @@ export async function loadPack(sql: SqlClient, packId: string): Promise<PackRow>
   return row;
 }
 
+export function isFlag(value: IssueRow["listed"] | IssueRow["special_topic"]): boolean {
+  return value === true || value === 1 || value === "t" || value === "true" || value === "1";
+}
+
 export function isListed(value: IssueRow["listed"]): boolean {
   if (value === false || value === 0 || value === "f" || value === "false") return false;
   return true;
@@ -380,6 +396,7 @@ export function publicIssue(row: IssueRow) {
     arena_gate: row.arena_gate,
     listed: isListed(row.listed),
     agenda_date,
+    special_topic: isFlag(row.special_topic),
     comment_count: Number.isFinite(comments) ? comments : undefined,
     charter_url: "/charter",
     published_by: "curator",

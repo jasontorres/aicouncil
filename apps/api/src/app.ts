@@ -11,6 +11,7 @@ import { handleMcp } from "./mcp/server.js";
 import { publicPages } from "./ui/pages.js";
 import { ApiError } from "./lib/errors.js";
 import { createFirecrawlPort, type FirecrawlPort } from "./ports/firecrawl.js";
+import { createHearingsPort, type HearingsPort } from "./ports/hearings.js";
 
 export type Documents = {
   agentsMd: string;
@@ -32,6 +33,7 @@ export type CreateAppOptions = {
   dedupe: DedupePort;
   documents: Documents;
   firecrawl?: FirecrawlPort;
+  hearings?: HearingsPort;
   firecrawlApiKey?: string;
   runtime?: "node" | "workers";
   storage?: "pglite" | "postgres" | "d1";
@@ -40,6 +42,7 @@ export type CreateAppOptions = {
 export function createApp(opts: CreateAppOptions) {
   const app = new Hono<AppEnv>();
   const firecrawl = opts.firecrawl ?? createFirecrawlPort({ apiKey: opts.firecrawlApiKey });
+  const hearings = opts.hearings ?? createHearingsPort();
 
   app.use("*", async (c, next) => {
     const config: RuntimeConfig = {
@@ -52,6 +55,7 @@ export function createApp(opts: CreateAppOptions) {
     c.set("config", config);
     c.set("dedupe", opts.dedupe);
     c.set("firecrawl", firecrawl);
+    c.set("hearings", hearings);
     await next();
   });
   app.use("*", originHeaders);

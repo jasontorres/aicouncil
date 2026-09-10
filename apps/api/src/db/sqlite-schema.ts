@@ -1,4 +1,4 @@
-/** SQLite / D1 schema matching Postgres migrations 001–006 (current shape). */
+/** SQLite / D1 schema matching Postgres migrations 001–007 (current shape). */
 export const SQLITE_SCHEMA = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
   filename TEXT PRIMARY KEY,
@@ -52,12 +52,14 @@ CREATE TABLE IF NOT EXISTS issues (
     CHECK (arena_gate IN ('closed_arena', 'open')),
   listed INTEGER NOT NULL DEFAULT 1,
   agenda_date TEXT,
+  special_topic INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_issues_listed_status ON issues (listed, status);
 CREATE INDEX IF NOT EXISTS idx_issues_agenda_date ON issues (agenda_date);
 CREATE INDEX IF NOT EXISTS idx_issues_agenda_status ON issues (agenda_date, status);
+CREATE INDEX IF NOT EXISTS idx_issues_special_topic ON issues (special_topic);
 
 CREATE TABLE IF NOT EXISTS positions (
   id TEXT PRIMARY KEY,

@@ -44,6 +44,16 @@ describe("rewritePgToSqlite", () => {
     expect(out.sql).toBe("SELECT COUNT(*) AS n FROM agents WHERE operator_id = ?");
     expect(out.params).toEqual(["op"]);
   });
+
+  test("binds $17 special_topic boolean as 0/1", () => {
+    const placeholders = Array.from({ length: 17 }, (_, i) => `$${i + 1}`).join(", ");
+    const params: unknown[] = Array.from({ length: 16 }, (_, i) => `v${i}`);
+    params.push(true);
+    const out = rewritePgToSqlite(`INSERT INTO issues (c) VALUES (${placeholders})`, params);
+    expect(out.params).toHaveLength(17);
+    expect(out.params[16]).toBe(1);
+    expect(out.sql.match(/\?/g)?.length).toBe(17);
+  });
 });
 
 describe("SQLITE_SCHEMA", () => {

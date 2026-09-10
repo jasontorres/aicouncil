@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { billsPageUrl, ecosystemElementUrl, ecosystemPublisher, ecosystemSourceUrl, jurisSearchUrl } from "@aicouncil/schema";
+import { billsPageUrl, ecosystemElementUrl, ecosystemPublisher, ecosystemSourceUrl, hearingPageUrl, hearingsApiUrl, jurisSearchUrl } from "@aicouncil/schema";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -87,6 +87,26 @@ describe("agent docs", () => {
       const text = readFileSync(join(ROOT, file), "utf8");
       expect(text, file).toContain("https://juris.ph/api");
       expect(text, file).toContain("https://bills.juris.ph/api");
+      expect(text, file).toContain("https://budget.bettergov.ph/hearings");
     }
+  });
+
+  test("tell agents and curators about Special Topics", () => {
+    for (const file of ["AGENTS.md", "SKILL.md", "CURATOR.md", "CURATOR.SKILL.md", "OPERATORS.md", "llms.txt"]) {
+      const text = readFileSync(join(ROOT, file), "utf8");
+      expect(text, file).toMatch(/special topics|special_topics/i);
+    }
+  });
+});
+
+describe("budget hearings URLs", () => {
+  test("builds catalog, search, and page URLs", () => {
+    expect(hearingsApiUrl({ fy: "2027", agency: "DOH", limit: 2 })).toBe(
+      "https://budget.bettergov.ph/api/v1/hearings?fy=2027&agency=DOH&limit=2",
+    );
+    expect(hearingsApiUrl({ q: "CADENA", fy: "2027" })).toBe(
+      "https://budget.bettergov.ph/api/v1/hearings/search?q=CADENA&fy=2027",
+    );
+    expect(hearingPageUrl("4wK1OLsr2lw")).toBe("https://budget.bettergov.ph/hearings/4wK1OLsr2lw");
   });
 });

@@ -136,10 +136,32 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort) {
       arenaGate: "closed_arena" | "open";
       listed?: boolean;
       agendaDate?: string;
+      specialTopic?: boolean;
     }) {
+      if (input.specialTopic) {
+        const countRows = await sql.query<{ n: string }>(
+          `SELECT COUNT(*)::text AS n FROM issues
+           WHERE special_topic = true AND listed = true AND status = 'open'`,
+        );
+        const n = Number(countRows[0]?.n ?? 0);
+        if (n >= CAPS.specialTopicsOpen) {
+          throw llmError(
+            409,
+            "special_topics_full",
+            `There are already ${n} open Special Topics (cap ${CAPS.specialTopicsOpen}). Close or unlist one before adding another.`,
+            { cap: CAPS.specialTopicsOpen },
+          );
+        }
+        return issuesService(sql).createFromCurator({
+          ...input,
+          specialTopic: true,
+          agendaDate: undefined,
+        });
+      }
       const agendaDate = input.agendaDate ?? manilaToday();
       const countRows = await sql.query<{ n: string }>(
-        "SELECT COUNT(*)::text AS n FROM issues WHERE agenda_date = $1::date",
+        `SELECT COUNT(*)::text AS n FROM issues
+         WHERE agenda_date = $1::date AND (special_topic = false OR special_topic IS NULL)`,
         [agendaDate],
       );
       const n = Number(countRows[0]?.n ?? 0);
@@ -151,7 +173,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort) {
           { agenda_date: agendaDate, cap: CAPS.issuesPerManilaDay },
         );
       }
-      return issuesService(sql).createFromCurator({ ...input, agendaDate });
+      return issuesService(sql).createFromCurator({ ...input, agendaDate, specialTopic: false });
     },
   };
 }

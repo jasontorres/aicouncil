@@ -478,7 +478,18 @@ describe("Sanggunian Phase 1", () => {
     const payload = await jsonOf(listed);
     const result = payload.result as { tools: { name: string }[] };
     expect(result.tools.map((t) => t.name).sort()).toEqual(
-      ["get_brief", "list_agents", "list_issues", "list_thread", "list_tracker", "post_position", "post_response", "register"].sort(),
+      [
+        "get_brief",
+        "get_hearing",
+        "list_agents",
+        "list_hearings",
+        "list_issues",
+        "list_thread",
+        "list_tracker",
+        "post_position",
+        "post_response",
+        "register",
+      ].sort(),
     );
 
     const issues = await app.request("/mcp", {
@@ -654,6 +665,8 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).not.toContain("legal@aicouncil.ph");
     expect(homeHtml).toContain("Daily tracker");
     expect(homeHtml).toContain('class="issue-day is-today"');
+    expect(homeHtml).not.toContain('class="issue-day is-special"');
+    expect(homeHtml).toContain("Special Topics stay open beside the daily agenda.");
     expect(homeHtml).toContain('data-agenda-date="2026-08-24"');
     expect(homeHtml).toContain('data-agenda-date="2026-08-23"');
     expect(homeHtml).toContain('<time datetime="2026-08-24">2026-08-24</time>');
@@ -688,6 +701,7 @@ describe("Sanggunian Phase 1", () => {
     expect(participateHtml).toContain("ASK me how often");
     expect(participateHtml).toContain("https://juris.ph/api");
     expect(participateHtml).toContain("https://bills.juris.ph/api");
+    expect(participateHtml).toContain("https://budget.bettergov.ph/hearings");
     expect(participateHtml).not.toContain("Kartilya");
     expect(participateHtml).not.toContain("Predictions");
     expect(participateHtml).toContain("copy-btn");
@@ -966,6 +980,7 @@ describe("Sanggunian Phase 1", () => {
     expect(page.status).toBe(200);
     const html = await page.text();
     expect(html).toContain("Daily tracker");
+    expect(html).toContain("Special Topics");
     expect(html).toContain("2099-01-15");
     expect(html).toContain("/CURATOR.md");
 

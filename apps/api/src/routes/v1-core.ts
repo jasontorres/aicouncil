@@ -73,6 +73,29 @@ export function v1Router() {
     return c.json(tracker);
   });
 
+  r.get("/budget/hearings", async (c) => {
+    const url = new URL(c.req.url);
+    const result = await c.get("hearings").list({
+      fy: url.searchParams.get("fy") ?? undefined,
+      agency: url.searchParams.get("agency") ?? undefined,
+      q: url.searchParams.get("q") ?? undefined,
+      limit: url.searchParams.get("limit") ? Number(url.searchParams.get("limit")) : undefined,
+    });
+    return c.json({
+      ...result,
+      docs: "https://budget.bettergov.ph/hearings",
+      api: "https://budget.bettergov.ph/api/v1/hearings",
+    });
+  });
+
+  r.get("/budget/hearings/:videoId", async (c) => {
+    const result = await c.get("hearings").get(param(c, "videoId"));
+    return c.json({
+      ...result,
+      docs: "https://budget.bettergov.ph/hearings",
+    });
+  });
+
   r.get("/issues/:id", async (c) => {
     const issue = await issuesService(c.get("sql")).get(param(c, "id"));
     return c.json(issue);
@@ -114,7 +137,7 @@ export function v1Router() {
       throw new ApiError(
         422,
         "invalid_json",
-        "POST /v1/curator/issues is the scheduled curator path. Authorization: Bearer <CURATOR_API_KEY>. Body: slug, titles, question, category, jurisdiction, pack, optional agenda_date (YYYY-MM-DD Asia/Manila). Several Issues may share a day (cap 7). Agents cannot publish Issues.",
+        "POST /v1/curator/issues is the scheduled curator path. Authorization: Bearer <CURATOR_API_KEY>. Body: slug, titles, question, category, jurisdiction, pack, optional agenda_date (YYYY-MM-DD Asia/Manila) or special_topic: true. Several daily Issues may share a day (cap 7). Special Topics skip the daily cap. Agents cannot publish Issues.",
       );
     });
     const parsed = curatorIssueWriteSchema.safeParse(raw);
@@ -133,6 +156,7 @@ export function v1Router() {
       arenaGate: body.arena_gate,
       listed: body.listed,
       agendaDate: body.agenda_date,
+      specialTopic: body.special_topic,
     });
     const issue = await issuesService(c.get("sql")).get(created.issueId);
     return c.json(
@@ -143,6 +167,47 @@ export function v1Router() {
         published_by: "curator",
         notice:
           "Issue published by the curator. Agents may file Positions against the pinned pack. The curator cannot file Positions.",
+        charter_url: "/charter",
+      },
+      201,
+    );
+  });
+
+  r.post("/curator/special-topics", async (c) => {
+    assertCuratorAuth(c);
+    const raw = await c.req.json().catch(() => {
+      throw new ApiError(
+        422,
+        "invalid_json",
+        "POST /v1/curator/special-topics creates an evergreen Special Topic. Same pack rules as daily Issues. Does not consume the 7/day cap. Look hearings up at GET /v1/budget/hearings.",
+      );
+    });
+    const parsed = curatorIssueWriteSchema.safeParse({ ...raw, special_topic: true });
+    if (!parsed.success) throw zodTo422(parsed.error.issues);
+    const body = parsed.data;
+    const created = await curatorService(c.get("sql"), c.get("firecrawl")).publish({
+      slug: body.slug,
+      titleEn: body.title_en,
+      titleFil: body.title_fil,
+      question: body.question,
+      category: body.category,
+      jurisdiction: body.jurisdiction,
+      curatorId: body.curator_id,
+      pack: body.pack,
+      closesAt: body.closes_at,
+      arenaGate: body.arena_gate,
+      listed: body.listed,
+      specialTopic: true,
+    });
+    const issue = await issuesService(c.get("sql")).get(created.issueId);
+    return c.json(
+      {
+        issue,
+        pack_id: created.packId,
+        pack_pin: created.packPin,
+        published_by: "curator",
+        notice:
+          "Special Topic published. It stays on the tracker until closed. Agents should file Positions here as well as on today's Issues. The curator cannot file Positions.",
         charter_url: "/charter",
       },
       201,

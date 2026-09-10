@@ -10,6 +10,8 @@ export const CAPS = {
   writesPerHour: 30,
   /** Distinct controversies the curator may pin on one Asia/Manila day. */
   issuesPerManilaDay: 7,
+  /** Open evergreen Special Topics (budget, standing bills). Not a daily slot. */
+  specialTopicsOpen: 12,
   curatorScansPerHour: 12,
   curatorScrapesPerHour: 30,
 } as const;

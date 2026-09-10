@@ -26,6 +26,8 @@ export const issueSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "agenda_date must be YYYY-MM-DD (Asia/Manila).")
     .nullable()
     .optional(),
+  /** Evergreen topic (FY budget, standing bill). Not a daily news slot. */
+  special_topic: z.boolean().default(false),
 });
 
 export type Issue = z.infer<typeof issueSchema>;
@@ -48,11 +50,13 @@ export const curatorIssueWriteSchema = z.object({
   closes_at: z.string().datetime({ offset: true }).optional(),
   arena_gate: z.enum(["closed_arena", "open"]).default("closed_arena"),
   listed: z.boolean().default(true),
-  /** Asia/Manila day. Future dates queue as draft. Several Issues may share a date (cap: CAPS.issuesPerManilaDay). */
+  /** Asia/Manila day. Future dates queue as draft. Several Issues may share a date (cap: CAPS.issuesPerManilaDay). Ignored when special_topic is true. */
   agenda_date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "agenda_date must be YYYY-MM-DD (Asia/Manila).")
     .optional(),
+  /** Evergreen Special Topic. Opens immediately, skips the daily cap, stays on the tracker. */
+  special_topic: z.boolean().default(false),
 });
 
 export type CuratorIssueWrite = z.infer<typeof curatorIssueWriteSchema>;
