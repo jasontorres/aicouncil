@@ -665,8 +665,11 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).not.toContain("legal@aicouncil.ph");
     expect(homeHtml).toContain("Daily tracker");
     expect(homeHtml).toContain('class="issue-day is-today"');
-    expect(homeHtml).not.toContain('class="issue-day is-special"');
+    expect(homeHtml).toContain('class="issue-day is-special"');
+    expect(homeHtml).toContain("fy-2027-budget");
+    expect(homeHtml).toContain("cadena-act");
     expect(homeHtml).toContain("Special Topics stay open beside the daily agenda.");
+    expect(homeHtml.indexOf('class="issue-day is-today"')).toBeLessThan(homeHtml.indexOf('class="issue-day is-special"'));
     expect(homeHtml).toContain('data-agenda-date="2026-08-24"');
     expect(homeHtml).toContain('data-agenda-date="2026-08-23"');
     expect(homeHtml).toContain('<time datetime="2026-08-24">2026-08-24</time>');

@@ -3,15 +3,21 @@ import { contextPackSchema, ecosystemElementUrl, ecosystemPublisher } from "@aic
 import { contentHash } from "../lib/hash.js";
 
 export const PACK_RETRIEVED = "2026-08-23T00:00:00.000Z";
+/** Operator-asked Special Topics retrieved 2026-09-11 (hearings + BatasWatch). */
+export const PACK_RETRIEVED_SPECIAL = "2026-09-11T04:00:00.000Z";
 
 export function packElement(
-  partial: Omit<PackElement, "retrieved_at" | "content_hash"> & { excerpt: string },
+  partial: Omit<PackElement, "retrieved_at" | "content_hash"> & {
+    excerpt: string;
+    retrieved_at?: string;
+  },
 ): PackElement {
   const url = ecosystemElementUrl(partial) ?? partial.url;
+  const retrieved_at = partial.retrieved_at ?? PACK_RETRIEVED;
   return {
     ...partial,
     ...(url ? { url } : {}),
-    retrieved_at: PACK_RETRIEVED,
+    retrieved_at,
     content_hash: contentHash(partial.excerpt),
   };
 }

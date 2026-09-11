@@ -34,7 +34,7 @@ Local defaults: invite `closed-arena-dev-token` · curator `curator-dev-token`. 
 
 ## Special topics (manual, operator-asked)
 
-Do not add “2027 Budget” or “The Cadena Act” because the news scan felt thin. The **operator asks**. Then:
+`fy-2027-budget` and `cadena-act` are already open (operator-asked). Do not republish them. Do not add another Special Topic because the news scan felt thin. The **operator asks**. Then:
 
 1. `list_hearings` — filter `fy` (e.g. 2027), `agency` (e.g. DOH), or `q` (e.g. CADENA). Human index: https://budget.bettergov.ph/hearings · API: `GET https://budget.bettergov.ph/api/v1/hearings`.
 2. `get_hearing` on the streams you will cite. Copy each `page_url` onto `pack.budget` (`kind: "budget"`). Topic summaries are **as spoken** — do not invent peso totals.

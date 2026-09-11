@@ -134,10 +134,10 @@ function mockHearingsFetch(): typeof fetch {
 }
 
 const specialBody = {
-  slug: "fy-2027-budget",
-  title_en: "2027 Budget",
-  title_fil: "Badyet 2027",
-  question: "What should Congress pin before it passes the FY 2027 GAA?",
+  slug: "test-special-nea",
+  title_en: "Test Special Topic",
+  title_fil: "Espesyal na paksa",
+  question: "What should Congress pin before it passes a test Special Topic?",
   category: "budget",
   jurisdiction: ["PH-national"],
   pack: hearingPack(),
@@ -215,7 +215,7 @@ describe("Special Topics + hearings", () => {
       status: string;
       listed: boolean;
     };
-    expect(issue.slug).toBe("fy-2027-budget");
+    expect(issue.slug).toBe("test-special-nea");
     expect(issue.special_topic).toBe(true);
     expect(issue.agenda_date).toBeNull();
     expect(issue.status).toBe("open");
@@ -226,11 +226,14 @@ describe("Special Topics + hearings", () => {
     const recent = tracker.recent as { slug: string }[];
     const today = tracker.today_issues as { slug: string }[];
     expect(specials.some((i) => i.slug === "fy-2027-budget")).toBe(true);
-    expect(recent.some((i) => i.slug === "fy-2027-budget")).toBe(false);
-    expect(today.some((i) => i.slug === "fy-2027-budget")).toBe(false);
+    expect(specials.some((i) => i.slug === "cadena-act")).toBe(true);
+    expect(specials.some((i) => i.slug === "test-special-nea")).toBe(true);
+    expect(recent.some((i) => i.slug === "test-special-nea")).toBe(false);
+    expect(today.some((i) => i.slug === "test-special-nea")).toBe(false);
 
     const listed = await jsonOf(await app.request("/v1/issues"));
     expect((listed.issues as { slug: string }[]).some((i) => i.slug === "fy-2027-budget")).toBe(true);
+    expect((listed.issues as { slug: string }[]).some((i) => i.slug === "test-special-nea")).toBe(true);
   });
 
   test("homepage and tracker HTML show the Special Topic", async () => {
@@ -238,7 +241,10 @@ describe("Special Topics + hearings", () => {
     const homeHtml = await home.text();
     expect(homeHtml).toContain('class="issue-day is-special"');
     expect(homeHtml).toContain("2027 Budget");
+    expect(homeHtml).toContain("Test Special Topic");
     expect(homeHtml).toContain('href="/issues/fy-2027-budget"');
+    expect(homeHtml).toContain('href="/issues/cadena-act"');
+    expect(homeHtml).toContain('href="/issues/test-special-nea"');
     expect(homeHtml).toContain("https://budget.bettergov.ph/hearings");
     expect(homeHtml.indexOf('class="issue-day is-today"')).toBeLessThan(homeHtml.indexOf('class="issue-day is-special"'));
 
@@ -246,6 +252,7 @@ describe("Special Topics + hearings", () => {
     const trackerHtml = await trackerPage.text();
     expect(trackerHtml).toContain("<h2>Special Topics</h2>");
     expect(trackerHtml).toContain("2027 Budget");
+    expect(trackerHtml).toContain("Test Special Topic");
 
     const issuePage = await app.request("/issues/fy-2027-budget");
     const issueHtml = await issuePage.text();
@@ -361,18 +368,39 @@ describe("Special Topics + hearings", () => {
           method: "tools/call",
           params: {
             name: "publish_special_topic",
-            arguments: { ...specialBody, slug: "cadena-act" },
+            arguments: { ...specialBody, slug: "cadena-act-demo" },
           },
         }),
       }),
     );
     const text = (ok.result as { content: { text: string }[] }).content[0]?.text ?? "";
-    expect(text).toContain("cadena-act");
+    expect(text).toContain("cadena-act-demo");
     expect(text).toContain('"special_topic": true');
   });
 });
 
 describe("Special Topics on SQLite / D1", () => {
+  test("seedClosedArena inserts operator-asked Special Topics even when academic Issues already exist", async () => {
+    const sql = createSqliteMemory();
+    const first = await seedClosedArena(sql);
+    const second = await seedClosedArena(sql);
+    expect(second.issueId).toBe(first.issueId);
+    const rows = await sql.query<{ slug: string; special_topic: number; listed: number; agenda_date: string | null }>(
+      "SELECT slug, special_topic, listed, agenda_date FROM issues WHERE slug IN ($1, $2) ORDER BY slug",
+      ["cadena-act", "fy-2027-budget"],
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => Number(row.special_topic) === 1)).toBe(true);
+    expect(rows.every((row) => Number(row.listed) === 1)).toBe(true);
+    expect(rows.every((row) => row.agenda_date == null)).toBe(true);
+    const count = await sql.query<{ n: number }>(
+      "SELECT COUNT(*) AS n FROM issues WHERE slug IN ($1, $2)",
+      ["cadena-act", "fy-2027-budget"],
+    );
+    expect(Number(count[0]?.n)).toBe(2);
+    await sql.close();
+  });
+
   test("inserts special_topic without consuming a Manila day", async () => {
     const sql = createSqliteMemory();
     await seedClosedArena(sql);

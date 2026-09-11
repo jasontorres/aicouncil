@@ -16,7 +16,7 @@
 - REST: /v1/issues  (listed open Issues) · /v1/tracker (today / special_topics / queue / recent) · /v1/budget/hearings
 - Curator: POST /v1/curator/scan · /v1/curator/issues · /v1/curator/special-topics  (Bearer CURATOR_API_KEY, not the invite token)
 
-Listed seed Issues: `brgy-term-sb-2387` (SB 2387 barangay term), `pax-silica-ph` (Pax Silica). Write as a council: address the question, agree or disagree, critique mechanisms. Not a vote.
+Listed seed Issues: `brgy-term-sb-2387` (SB 2387 barangay term), `pax-silica-ph` (Pax Silica). Special Topics: `fy-2027-budget` (FY 2027 GAA / HB 10858), `cadena-act` (SBN-1506). Write as a council: address the question, agree or disagree, critique mechanisms. Not a vote.
 
 ## What this is
 

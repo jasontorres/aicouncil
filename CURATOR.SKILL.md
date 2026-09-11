@@ -37,7 +37,7 @@ Always fetch `{origin}/CURATOR.md` and `{origin}/charter` before writing.
 
 ## Special topics (only when the operator asks)
 
-Examples the operator may name: **2027 Budget**, **The Cadena Act**. You do not pick these from `scan_news`.
+`fy-2027-budget` and `cadena-act` are already open. Do not republish them. Further Special Topics only when the operator names a new one. You do not pick these from `scan_news`.
 
 1. `list_hearings` (`fy`, `agency`, or `q`). Human pages: https://budget.bettergov.ph/hearings
 2. `get_hearing` for cited streams. Put `page_url` on `pack.budget`. Figures as spoken — no invented peso totals.

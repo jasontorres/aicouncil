@@ -9,6 +9,8 @@ import { insertIssue, archiveIssues } from "./services/issues.js";
 import { FLOOD_CONTROL_PACK, FLOOD_ISSUE } from "./packs/flood-control.js";
 import { BARANGAY_TERMS_PACK, BARANGAY_ISSUE } from "./packs/barangay-terms.js";
 import { PAX_SILICA_PACK, PAX_ISSUE } from "./packs/pax-silica.js";
+import { FY_2027_BUDGET_PACK, FY_2027_BUDGET_ISSUE } from "./packs/fy-2027-budget.js";
+import { CADENA_ACT_PACK, CADENA_ACT_ISSUE } from "./packs/cadena-act.js";
 
 const RETRIEVED = "2026-08-23T00:00:00.000Z";
 
@@ -256,6 +258,8 @@ export const SEED_ISSUE = {
 export const FLOOD_SEED_ISSUE = FLOOD_ISSUE;
 export const BARANGAY_SEED_ISSUE = BARANGAY_ISSUE;
 export const PAX_SEED_ISSUE = PAX_ISSUE;
+export const FY_2027_BUDGET_SEED_ISSUE = FY_2027_BUDGET_ISSUE;
+export const CADENA_ACT_SEED_ISSUE = CADENA_ACT_ISSUE;
 
 /** Old academic Issues stay in the DB but are unlisted so the homepage is the simple questions. */
 export const ARCHIVED_ISSUE_SLUGS = [SEED_ISSUE.slug, FLOOD_ISSUE.slug] as const;
@@ -284,6 +288,7 @@ export async function seedClosedArena(sql: SqlClient): Promise<{
     const barangayRow = bySlug.get(BARANGAY_ISSUE.slug);
     const paxRow = bySlug.get(PAX_ISSUE.slug);
     if (wasteRow && floodRow && barangayRow && paxRow) {
+      await ensureOperatorSpecialTopics(sql);
       return {
         issueId: wasteRow.id,
         packId: wasteRow.context_pack_id,
@@ -438,6 +443,7 @@ export async function seedClosedArena(sql: SqlClient): Promise<{
   });
 
   await archiveIssues(sql, [...ARCHIVED_ISSUE_SLUGS]);
+  await ensureOperatorSpecialTopics(sql);
 
   return {
     issueId: waste.issueId,
@@ -449,6 +455,71 @@ export async function seedClosedArena(sql: SqlClient): Promise<{
       pax: { ...pax, slug: PAX_ISSUE.slug },
     },
   };
+}
+
+async function ensureOperatorSpecialTopics(sql: SqlClient): Promise<void> {
+  await ensureIssue(sql, {
+    ...FY_2027_BUDGET_ISSUE,
+    pack: FY_2027_BUDGET_PACK,
+    opened_at: "2026-09-11T04:00:00.000Z",
+    listed: true,
+    special_topic: true,
+    record: {
+      convergence: [],
+      fractures: [],
+      unresolved: [
+        {
+          id: "u-utilization-vs-totals",
+          text: "Whether Congress pins utilization and the hearing record in the enrolled GAA, or only headline totals, is unresolved until a law exists.",
+          supporting_position_ids: [],
+        },
+      ],
+      cheapest_test: [
+        {
+          id: "t-publish-catch-up-tables",
+          text: "Cheapest test: publish the catch-up and utilization tables House Appropriations already asked DOH and DICT to submit, next to HB 10858.",
+          supporting_position_ids: [],
+        },
+      ],
+      dissent: [],
+      provenance: {
+        synthesis_mode: "manual_stub",
+        synthesizer: "curator:sanggunian",
+        generated_at: "2026-09-11T04:00:00.000Z",
+      },
+    },
+  });
+  await ensureIssue(sql, {
+    ...CADENA_ACT_ISSUE,
+    pack: CADENA_ACT_PACK,
+    opened_at: "2026-09-11T04:05:00.000Z",
+    listed: true,
+    special_topic: true,
+    record: {
+      convergence: [],
+      fractures: [],
+      unresolved: [
+        {
+          id: "u-house-vehicle",
+          text: "The House vehicle and a CADENA funding line are not published. Senate passage is not enactment.",
+          supporting_position_ids: [],
+        },
+      ],
+      cheapest_test: [
+        {
+          id: "t-house-referral",
+          text: "Cheapest test: a numbered House counterpart or committee referral for SBN-1506, plus an explicit GAA or special-fund line if the portal is to run.",
+          supporting_position_ids: [],
+        },
+      ],
+      dissent: [],
+      provenance: {
+        synthesis_mode: "manual_stub",
+        synthesizer: "curator:sanggunian",
+        generated_at: "2026-09-11T04:05:00.000Z",
+      },
+    },
+  });
 }
 
 async function ensureIssue(
@@ -464,9 +535,10 @@ async function ensureIssue(
     arena_gate: string;
     pack: ContextPack;
     opened_at: string;
-    closes_at: string;
+    closes_at?: string;
     listed?: boolean;
     agenda_date?: string;
+    special_topic?: boolean;
     record: {
       convergence: unknown[];
       fractures: unknown[];

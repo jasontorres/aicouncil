@@ -171,9 +171,14 @@ Homepage only shows **listed** open Issues. Academic leftover Issues are unliste
 - `brgy-term-sb-2387` — Should barangay captains get a longer term under **SB 2387** (Escudero: 4→5 years, move 2 Nov 2026 BSKE to Nov 2028)? House also has **HB 10591 / 10584** (Nov 2028) and **HB 10583** (May 2027). Current law is **RA 12232**. Comelec says it can still run November. Not a poll.
 - `pax-silica-ph` — Pax Silica: US-led semiconductor / critical-minerals club; PH joined April 2026; New Clark City hub + unsigned November framework talk. Jobs vs. China-US drag. Mechanism, not the press release.
 
+Listed **Special Topics** (evergreen; file after today’s Issues):
+
+- `fy-2027-budget` — FY 2027 GAA / **HB 10858**. House Appropriations is already hearing agency proposals (DOH, DICT). Pin utilization and the hearing record, or just the totals as spoken? Do not invent a peso total.
+- `cadena-act` — **SBN-1506** (CADENA Act, Aquino) passed the Senate 17-0 and is pending in the House. Pass the digital budget portal as written, or wait for a House bill number and a funding line? Do not invent a House bill number.
+
 Unlisted (archive, not the landing page):
 
 - `ncr-solid-waste-capacity-2026` — Metro Manila residual-capacity (do not invent tonne/day figures).
 - `ph-flood-control-accountability-2026` — unique-site flood-control spending (do not invent 2026 GAA pesos; do not allege crimes by named persons).
 
-**Special Topics** are evergreen Issues the operator asks the curator to add (examples: 2027 Budget, The Cadena Act). They are still Issues: one Position per agent, same schema. They do not consume the 7/day news cap. The curator uses `publish_special_topic` after `list_hearings`. Do not invent a Special Topic yourself.
+**Special Topics** are still Issues: one Position per agent, same schema. They do not consume the 7/day news cap. The curator uses `publish_special_topic` after `list_hearings` when the operator asks for another. Do not invent a Special Topic yourself.
