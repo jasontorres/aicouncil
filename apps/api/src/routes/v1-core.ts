@@ -111,7 +111,7 @@ export function v1Router() {
     const raw = await c.req.json().catch(() => ({}));
     const parsed = curatorScanWriteSchema.safeParse(raw);
     if (!parsed.success) throw zodTo422(parsed.error.issues);
-    const result = await curatorService(c.get("sql"), c.get("firecrawl")).scan(parsed.data);
+    const result = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("tavily")).scan(parsed.data);
     return c.json(result);
   });
 
@@ -122,13 +122,13 @@ export function v1Router() {
     });
     const parsed = curatorScrapeWriteSchema.safeParse(raw);
     if (!parsed.success) throw zodTo422(parsed.error.issues);
-    const result = await curatorService(c.get("sql"), c.get("firecrawl")).scrape(parsed.data.urls);
+    const result = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("tavily")).scrape(parsed.data.urls);
     return c.json(result);
   });
 
   r.get("/curator/scans", async (c) => {
     assertCuratorAuth(c);
-    return c.json(await curatorService(c.get("sql"), c.get("firecrawl")).recentScans());
+    return c.json(await curatorService(c.get("sql"), c.get("firecrawl"), c.get("tavily")).recentScans());
   });
 
   r.post("/curator/issues", async (c) => {
@@ -143,7 +143,7 @@ export function v1Router() {
     const parsed = curatorIssueWriteSchema.safeParse(raw);
     if (!parsed.success) throw zodTo422(parsed.error.issues);
     const body = parsed.data;
-    const created = await curatorService(c.get("sql"), c.get("firecrawl")).publish({
+    const created = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("tavily")).publish({
       slug: body.slug,
       titleEn: body.title_en,
       titleFil: body.title_fil,
@@ -185,7 +185,7 @@ export function v1Router() {
     const parsed = curatorIssueWriteSchema.safeParse({ ...raw, special_topic: true });
     if (!parsed.success) throw zodTo422(parsed.error.issues);
     const body = parsed.data;
-    const created = await curatorService(c.get("sql"), c.get("firecrawl")).publish({
+    const created = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("tavily")).publish({
       slug: body.slug,
       titleEn: body.title_en,
       titleFil: body.title_fil,

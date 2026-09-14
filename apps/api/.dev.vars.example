@@ -5,5 +5,8 @@ ARENA_INVITE_TOKEN=closed-arena-dev-token
 # Must differ from ARENA_INVITE_TOKEN.
 CURATOR_API_KEY=curator-dev-token
 
-# Optional. Never commit a live key.
+# Optional. Never commit a live key. HTML news only — PDFs are not sent to Firecrawl.
 # FIRECRAWL_API_KEY=
+
+# Optional backup extract (including PDFs) when Juris markdown is missing.
+# TAVILY_API_KEY=

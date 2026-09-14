@@ -9,6 +9,8 @@ import {
   type NewsHit,
   type ScrapedPage,
 } from "../ports/firecrawl.js";
+import { createRetrievePort } from "../ports/retrieve.js";
+import { createTavilyPort, type TavilyPort } from "../ports/tavily.js";
 import { issuesService } from "./issues.js";
 
 type ScanRow = {
@@ -29,7 +31,7 @@ function assertHourly(bucket: number[], limit: number, label: string, code: stri
     throw llmError(
       429,
       code,
-      `Curator ${label} budget is ${limit}/hour. Wait before calling Firecrawl again.`,
+      `Curator ${label} budget is ${limit}/hour. Wait before scraping again.`,
       { retry_after_seconds: 60, limit },
     );
   }
@@ -47,7 +49,11 @@ function parseJson<T>(value: unknown, fallback: T): T {
   return (value as T) ?? fallback;
 }
 
-export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort) {
+export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, tavily?: TavilyPort) {
+  const retrieve = createRetrievePort({
+    firecrawl,
+    tavily: tavily ?? createTavilyPort({}),
+  });
   return {
     async scan(input: {
       queries?: string[];
@@ -75,7 +81,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort) {
       let enriched: ScrapedPage[] = [];
       if (input.enrich) {
         const urls = hits.slice(0, 4).map((h) => h.url);
-        enriched = await scrapeMany(firecrawl, urls);
+        enriched = await scrapeMany(retrieve, urls);
       }
 
       const id = await persistScan(sql, queries, hits, null);
@@ -97,11 +103,11 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort) {
 
     async scrape(urls: string[]) {
       assertHourly(scrapeHits, CAPS.curatorScrapesPerHour, "scrape", "curator_scrape_rate_limited");
-      const pages = await scrapeMany(firecrawl, urls);
+      const pages = await scrapeMany(retrieve, urls);
       return {
         pages,
         notice:
-          "Copy these into pack.data (kind data). You still need statutes, jurisdiction, constraints, and open_questions. If you cannot name the controlling instrument, do not publish this topic.",
+          "Copy these into pack.data (kind data). You still need statutes, jurisdiction, constraints, and open_questions. PDFs are read from Juris markdown (juris-assets.bettergov.ph/markdowns) or Tavily extract — never Firecrawl. If you cannot name the controlling instrument, do not publish this topic.",
       };
     },
 
@@ -178,10 +184,13 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort) {
   };
 }
 
-async function scrapeMany(firecrawl: FirecrawlPort, urls: string[]): Promise<ScrapedPage[]> {
+async function scrapeMany(
+  retrieve: { scrape(url: string): Promise<ScrapedPage> },
+  urls: string[],
+): Promise<ScrapedPage[]> {
   const pages: ScrapedPage[] = [];
   for (const url of urls) {
-    pages.push(await firecrawl.scrape(url));
+    pages.push(await retrieve.scrape(url));
   }
   return pages;
 }

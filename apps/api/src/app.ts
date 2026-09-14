@@ -12,6 +12,7 @@ import { publicPages } from "./ui/pages.js";
 import { ApiError } from "./lib/errors.js";
 import { createFirecrawlPort, type FirecrawlPort } from "./ports/firecrawl.js";
 import { createHearingsPort, type HearingsPort } from "./ports/hearings.js";
+import { createTavilyPort, type TavilyPort } from "./ports/tavily.js";
 
 export type Documents = {
   agentsMd: string;
@@ -34,7 +35,9 @@ export type CreateAppOptions = {
   documents: Documents;
   firecrawl?: FirecrawlPort;
   hearings?: HearingsPort;
+  tavily?: TavilyPort;
   firecrawlApiKey?: string;
+  tavilyApiKey?: string;
   runtime?: "node" | "workers";
   storage?: "pglite" | "postgres" | "d1";
 };
@@ -43,6 +46,7 @@ export function createApp(opts: CreateAppOptions) {
   const app = new Hono<AppEnv>();
   const firecrawl = opts.firecrawl ?? createFirecrawlPort({ apiKey: opts.firecrawlApiKey });
   const hearings = opts.hearings ?? createHearingsPort();
+  const tavily = opts.tavily ?? createTavilyPort({ apiKey: opts.tavilyApiKey });
 
   app.use("*", async (c, next) => {
     const config: RuntimeConfig = {
@@ -50,12 +54,14 @@ export function createApp(opts: CreateAppOptions) {
       curatorApiKey: opts.curatorApiKey,
       publicBaseUrl: opts.publicBaseUrl ?? new URL(c.req.url).origin,
       firecrawlConfigured: firecrawl.configured,
+      tavilyConfigured: tavily.configured,
     };
     c.set("sql", opts.sql);
     c.set("config", config);
     c.set("dedupe", opts.dedupe);
     c.set("firecrawl", firecrawl);
     c.set("hearings", hearings);
+    c.set("tavily", tavily);
     await next();
   });
   app.use("*", originHeaders);
@@ -123,6 +129,7 @@ export function createApp(opts: CreateAppOptions) {
       brand: "Sanggunian",
       phase: 1,
       firecrawl: c.get("config").firecrawlConfigured,
+      tavily: c.get("config").tavilyConfigured,
       runtime: opts.runtime ?? "node",
       storage: opts.storage ?? "pglite",
     }),

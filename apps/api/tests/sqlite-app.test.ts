@@ -47,10 +47,16 @@ describe("SQLite / D1 dialect", () => {
   test("healthz reports the workers/d1 runtime labels", async () => {
     const res = await app.request("/healthz");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { runtime: string; storage: string; ok: boolean };
+    const body = (await res.json()) as {
+      runtime: string;
+      storage: string;
+      ok: boolean;
+      tavily?: boolean;
+    };
     expect(body.ok).toBe(true);
     expect(body.runtime).toBe("workers");
     expect(body.storage).toBe("d1");
+    expect(body.tavily).toBe(false);
   });
 
   test("seed lists barangay and pax, archives waste and flood", async () => {

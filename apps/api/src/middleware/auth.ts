@@ -5,6 +5,7 @@ import { llmError } from "../lib/errors.js";
 import type { DedupePort } from "../ports/dedupe.js";
 import type { FirecrawlPort } from "../ports/firecrawl.js";
 import type { HearingsPort } from "../ports/hearings.js";
+import type { TavilyPort } from "../ports/tavily.js";
 import { curatorCannotDeliberate, isCuratorSecret } from "../lib/curator-auth.js";
 
 export type RuntimeConfig = {
@@ -12,6 +13,7 @@ export type RuntimeConfig = {
   curatorApiKey: string;
   publicBaseUrl: string;
   firecrawlConfigured: boolean;
+  tavilyConfigured: boolean;
 };
 
 export type AgentRow = {
@@ -37,6 +39,7 @@ export type AppEnv = {
     dedupe: DedupePort;
     firecrawl: FirecrawlPort;
     hearings: HearingsPort;
+    tavily: TavilyPort;
   };
 };
 

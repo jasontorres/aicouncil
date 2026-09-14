@@ -1,5 +1,8 @@
 import { llmError } from "../lib/errors.js";
-import { contentHash, sha256Hex } from "../lib/hash.js";
+import { isPdfUrl, pageFromText, type ScrapedPage } from "./scrape-page.js";
+
+export type { ScrapedPage } from "./scrape-page.js";
+export { sourceIdFromUrl } from "./scrape-page.js";
 
 export const DEFAULT_NEWS_QUERIES = [
   "Philippines news",
@@ -34,18 +37,6 @@ export type NewsHit = {
   date?: string;
 };
 
-export type ScrapedPage = {
-  url: string;
-  title: string;
-  excerpt: string;
-  markdown?: string;
-  publisher?: string;
-  source_id: string;
-  kind: "data";
-  retrieved_at: string;
-  content_hash: string;
-  citation?: string;
-};
 
 export type FirecrawlPort = {
   configured: boolean;
@@ -61,16 +52,6 @@ export type FirecrawlPort = {
 type FetchLike = typeof fetch;
 
 const FIRECRAWL_BASE = "https://api.firecrawl.dev/v2";
-
-export function sourceIdFromUrl(url: string): string {
-  const hash = sha256Hex(url).slice(0, 8);
-  try {
-    const host = new URL(url).hostname.replace(/^www\./, "").replace(/[^a-z0-9]+/gi, "-");
-    return `news-${host}-${hash}`.replace(/-+/g, "-").slice(0, 128);
-  } catch {
-    return `news-${hash}`;
-  }
-}
 
 export function createFirecrawlPort(opts: {
   apiKey?: string;
@@ -161,6 +142,13 @@ export function createFirecrawlPort(opts: {
 
     async scrape(url) {
       if (!apiKey) unconfigured();
+      if (isPdfUrl(url)) {
+        throw llmError(
+          422,
+          "pdf_skipped",
+          "Do not scrape PDFs with Firecrawl. The server reads Juris markdown at juris-assets.bettergov.ph/markdowns/ or Tavily extract.",
+        );
+      }
       const json = await firecrawl<Record<string, unknown>>(
         "/scrape",
         { url, formats: ["markdown"] },
@@ -228,34 +216,9 @@ function pageFromScrape(requested: string, json: Record<string, unknown>): Scrap
   const url = stringish(meta.sourceURL) || stringish(meta.url) || stringish(data.url) || requested;
   const title = stringish(meta.title) || stringish(data.title) || url;
   const markdown = stringish(data.markdown);
-  const excerpt = clipExcerpt(markdown || stringish(data.summary) || stringish(meta.description) || title);
-  const retrieved_at = new Date().toISOString();
-  return {
-    url,
-    title,
-    excerpt,
-    markdown: markdown ? markdown.slice(0, 20_000) : undefined,
-    publisher: hostnameOf(url),
-    source_id: sourceIdFromUrl(url),
-    kind: "data",
-    retrieved_at,
-    content_hash: contentHash(excerpt),
-    citation: title,
-  };
-}
-
-function clipExcerpt(text: string): string {
-  const trimmed = text.replace(/\s+/g, " ").trim();
-  if (trimmed.length <= 8000) return trimmed || "No excerpt.";
-  return `${trimmed.slice(0, 7997)}...`;
-}
-
-function hostnameOf(url: string): string | undefined {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return undefined;
-  }
+  const text = markdown || stringish(data.summary) || stringish(meta.description) || title;
+  const page = pageFromText(url, title, text);
+  return markdown ? page : { ...page, markdown: undefined };
 }
 
 function stringish(value: unknown): string {

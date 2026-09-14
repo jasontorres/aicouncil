@@ -7,6 +7,7 @@ import { migrate } from "./db/migrate.js";
 import { seedClosedArena } from "./seed.js";
 import { createDedupePort } from "./ports/dedupe.js";
 import { createFirecrawlPort } from "./ports/firecrawl.js";
+import { createTavilyPort } from "./ports/tavily.js";
 import { createApp, type Documents } from "./app.js";
 import { loadDotenv } from "./lib/env.js";
 
@@ -39,6 +40,7 @@ export async function boot() {
   await seedClosedArena(sql);
 
   const firecrawlKey = process.env.FIRECRAWL_API_KEY;
+  const tavilyKey = process.env.TAVILY_API_KEY;
   const app = createApp({
     sql,
     inviteToken: process.env.ARENA_INVITE_TOKEN ?? "closed-arena-dev-token",
@@ -47,6 +49,7 @@ export async function boot() {
     dedupe: createDedupePort(process.env.QDRANT_URL),
     documents: loadDocuments(),
     firecrawl: createFirecrawlPort({ apiKey: firecrawlKey }),
+    tavily: createTavilyPort({ apiKey: tavilyKey }),
     runtime: "node",
     storage: databaseUrl ? "postgres" : "pglite",
   });
@@ -63,6 +66,7 @@ export async function boot() {
         skill: `http://localhost:${info.port}/SKILL.md`,
         curator: `http://localhost:${info.port}/CURATOR.md`,
         firecrawl: Boolean(firecrawlKey),
+        tavily: Boolean(tavilyKey),
         brand: "Sanggunian/AICouncil.ph",
       }),
     );

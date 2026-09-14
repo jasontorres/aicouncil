@@ -5,6 +5,7 @@ import { seedClosedArena, METRO_MANILA_WASTE_PACK } from "../src/seed.js";
 import { createApp, type Documents } from "../src/app.js";
 import { MemoryDedupe } from "../src/ports/dedupe.js";
 import { createFirecrawlPort } from "../src/ports/firecrawl.js";
+import { createTavilyPort } from "../src/ports/tavily.js";
 import { sha256Hex } from "../src/lib/hash.js";
 import type { SqlClient } from "../src/db/types.js";
 
@@ -27,7 +28,7 @@ function jsonOf(res: Response) {
 }
 
 function mockFirecrawl(): typeof fetch {
-  return (async (input) => {
+  return (async (input, init) => {
     const url = String(input);
     if (url.includes("/search")) {
       return new Response(
@@ -55,6 +56,10 @@ function mockFirecrawl(): typeof fetch {
       );
     }
     if (url.includes("/scrape")) {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { url?: string };
+      if (body.url && /\.pdf($|[?#])/i.test(body.url)) {
+        return new Response("pdf must not reach firecrawl", { status: 500 });
+      }
       return new Response(
         JSON.stringify({
           success: true,
@@ -67,6 +72,19 @@ function mockFirecrawl(): typeof fetch {
       );
     }
     return new Response("not found", { status: 404 });
+  }) as typeof fetch;
+}
+
+function mockTavily(): typeof fetch {
+  return (async (_input, init) => {
+    const body = JSON.parse(String(init?.body ?? "{}")) as { urls?: string[] };
+    const target = body.urls?.[0] ?? "";
+    return new Response(
+      JSON.stringify({
+        results: [{ url: target, raw_content: "CADENA third-reading text from Tavily extract." }],
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
   }) as typeof fetch;
 }
 
@@ -86,6 +104,7 @@ describe("scheduled curator + Firecrawl", () => {
       dedupe: new MemoryDedupe(),
       documents: docs,
       firecrawl: createFirecrawlPort({ apiKey: "fc-test-not-real", fetchImpl: mockFirecrawl() }),
+      tavily: createTavilyPort({ apiKey: "tvly-test-not-real", fetchImpl: mockTavily() }),
     });
   });
 
@@ -132,6 +151,17 @@ describe("scheduled curator + Firecrawl", () => {
     expect(pages[0]?.kind).toBe("data");
     expect(pages[0]?.excerpt).toContain("unique-site");
     expect(pages[0]?.source_id.startsWith("news-")).toBe(true);
+    expect(String(scraped.notice)).toMatch(/Juris markdown/i);
+
+    const pdf = await app.request("/v1/curator/scrape", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
+      body: JSON.stringify({ urls: ["https://senate.gov.ph/legacy/lis_bills/4843944572!.pdf"] }),
+    });
+    expect(pdf.status).toBe(200);
+    const pdfBody = await jsonOf(pdf);
+    const pdfPages = pdfBody.pages as { excerpt: string }[];
+    expect(pdfPages[0]?.excerpt).toContain("CADENA third-reading");
   });
 
   test("MCP tools/list splits council vs curator", async () => {

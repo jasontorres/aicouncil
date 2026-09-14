@@ -6,6 +6,8 @@ interface __BaseEnv_Env {
 	PUBLIC_BASE_URL: "https://aicouncil.bettergov.ph";
 	ARENA_INVITE_TOKEN: string;
 	CURATOR_API_KEY: string;
+	FIRECRAWL_API_KEY?: string;
+	TAVILY_API_KEY?: string;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
