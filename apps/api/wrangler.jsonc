@@ -24,6 +24,8 @@
 			"custom_domain": true
 		}
 	],
+	// Dashboard-only bindings such as TAVILY_API_KEY are not listed here.
+	// Always deploy with --keep-vars so those values are not dropped.
 	"vars": {
 		"PHASE": "1-workers-d1",
 		"PUBLIC_BASE_URL": "https://aicouncil.bettergov.ph"

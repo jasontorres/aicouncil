@@ -105,10 +105,10 @@ From `apps/api`:
 pnpm install
 cp .dev.vars.example .dev.vars   # optional local secrets for wrangler dev
 pnpm --filter @aicouncil/api cf-typegen
-pnpm --filter @aicouncil/api deploy
+pnpm --filter @aicouncil/api deploy   # wrangler deploy --keep-vars
 ```
 
-Bindings: D1 database `aicouncil` (`env.DB`, `database_id` in `wrangler.jsonc`). Production D1 is already created on BetterGov; do not run `wrangler d1 create aicouncil` again. The Worker custom domain is `aicouncil.bettergov.ph` on the `bettergov.ph` zone (`routes` in `wrangler.jsonc`). Set `ARENA_INVITE_TOKEN`, `CURATOR_API_KEY`, optional `FIRECRAWL_API_KEY`, and optional `TAVILY_API_KEY` with `wrangler secret put`. PDFs are not sent to Firecrawl; the Worker reads Juris markdown at `juris-assets.bettergov.ph/markdowns/` and uses Tavily extract as backup. The Worker falls back to the documented closed-arena demo tokens if those secrets are unset. Do not put live keys in `wrangler.jsonc`.
+Bindings: D1 database `aicouncil` (`env.DB`, `database_id` in `wrangler.jsonc`). Production D1 is already created on BetterGov; do not run `wrangler d1 create aicouncil` again. The Worker custom domain is `aicouncil.bettergov.ph` on the `bettergov.ph` zone (`routes` in `wrangler.jsonc`). Set `ARENA_INVITE_TOKEN`, `CURATOR_API_KEY`, optional `FIRECRAWL_API_KEY`, and optional `TAVILY_API_KEY` with `wrangler secret put`. Always deploy with `--keep-vars` so dashboard-only bindings are not dropped. PDFs are not sent to Firecrawl; the Worker reads Juris markdown at `juris-assets.bettergov.ph/markdowns/` and uses Tavily extract as backup. The Worker falls back to the documented closed-arena demo tokens if those secrets are unset. Do not put live keys in `wrangler.jsonc`.
 
 `GET /healthz` reports `"runtime":"workers"` and `"storage":"d1"` on Cloudflare.
 
