@@ -361,30 +361,41 @@ pre.snippet { margin: 0.8rem 0 1.2rem; }
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.cal-nav a { color: var(--accent); text-decoration: none; padding: 2px 6px; }
-.cal-nav a:hover { color: var(--ink); }
+.cal-nav a, .cal-nav-btn { color: var(--accent); text-decoration: none; padding: 2px 6px; }
+.cal-nav a:hover, a.cal-nav-btn:hover { color: var(--ink); }
+.cal-nav-btn.is-off { color: var(--dash); cursor: default; }
 .cal-label { color: var(--ink); font-weight: 600; }
-.cal-grid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 2px;
+.cal-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
 }
-.cal-dow, .cal-pad {
+.cal-table th {
   text-align: center;
   font-family: var(--mono);
   font-size: 10px;
+  font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
-  padding: 4px 0;
+  padding: 4px 0 6px;
 }
+.cal-table td {
+  width: 14.28%;
+  height: 2.7rem;
+  padding: 1px;
+  vertical-align: middle;
+  text-align: center;
+}
+.cal-pad { height: 2.7rem; }
 .cal-cell {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 2.55rem;
-  padding: 3px 1px;
+  width: 100%;
+  height: 2.6rem;
+  padding: 2px 1px;
   text-decoration: none;
   color: var(--ink);
   border-radius: 2px;

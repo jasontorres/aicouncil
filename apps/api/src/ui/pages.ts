@@ -402,7 +402,7 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     const q = (c.req.query("q") ?? "").trim();
     const qLower = q.toLowerCase();
     const selected = pickSelectedDay(c.req.query("day"), wire.day_counts, wire.today);
-    const month = pickMonth(c.req.query("month"), selected);
+    const month = pickMonth(c.req.query("month"), selected, wire.day_counts);
     const counts = new Map(wire.day_counts.map((row) => [row.date, row]));
     const showHeadlines = kind !== "scrapes";
     const showScrapes = kind !== "headlines";

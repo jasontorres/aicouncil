@@ -1,6 +1,6 @@
 import { html } from "hono/html";
 import type { HtmlEscapedString } from "hono/utils/html";
-import { isAgendaDate, parseYmdUtc, shiftYearMonth } from "../lib/manila.js";
+import { isAgendaDate, isYearMonth, shiftYearMonth } from "../lib/manila.js";
 
 type Html = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -9,6 +9,20 @@ export type NewsKind = "all" | "headlines" | "scrapes";
 export type DayCount = { date: string; stories: number; scrapes: number };
 
 const DOW = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 export function parseNewsKind(value: string | undefined): NewsKind {
   if (value === "headlines" || value === "scrapes") return value;
@@ -26,9 +40,9 @@ export function newsHref(opts: { day?: string; month?: string; q?: string; kind?
 }
 
 export function monthLabel(ym: string): string {
-  const parsed = parseYmdUtc(`${ym}-01`);
-  if (!parsed) return ym;
-  return parsed.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+  if (!isYearMonth(ym)) return ym;
+  const month = Number(ym.slice(5, 7));
+  return `${MONTHS[month - 1] ?? ym} ${ym.slice(0, 4)}`;
 }
 
 export function countForKind(row: DayCount | undefined, kind: NewsKind): number {
@@ -38,6 +52,33 @@ export function countForKind(row: DayCount | undefined, kind: NewsKind): number 
   return row.stories + row.scrapes;
 }
 
+export function monthsWithCounts(counts: Iterable<string>): string[] {
+  return [...new Set([...counts].map((date) => date.slice(0, 7)))].sort();
+}
+
+/** Monday-first weeks. `null` is a leading/trailing pad. */
+export function calendarWeeks(month: string): (number | null)[][] {
+  if (!isYearMonth(month)) return [];
+  const year = Number(month.slice(0, 4));
+  const mo = Number(month.slice(5, 7));
+  const pad = (new Date(Date.UTC(year, mo - 1, 1)).getUTCDay() + 6) % 7;
+  const lastDate = new Date(Date.UTC(year, mo, 0)).getUTCDate();
+  const cells: (number | null)[] = [...Array<number | null>(pad).fill(null)];
+  for (let day = 1; day <= lastDate; day += 1) cells.push(day);
+  while (cells.length % 7 !== 0) cells.push(null);
+  const weeks: (number | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}
+
+export function dayInMonth(month: string, selected: string, dates: string[]): string {
+  if (selected.startsWith(`${month}-`)) return selected;
+  const inMonth = dates.filter((date) => date.startsWith(`${month}-`)).sort();
+  if (inMonth.length === 0) return `${month}-01`;
+  if (selected.slice(0, 7) < month) return inMonth[0]!;
+  return inMonth[inMonth.length - 1]!;
+}
+
 export function calendarMonth(opts: {
   month: string;
   selected: string;
@@ -45,51 +86,63 @@ export function calendarMonth(opts: {
   kind: NewsKind;
   q: string;
 }): Html {
-  const year = Number(opts.month.slice(0, 4));
-  const month = Number(opts.month.slice(5, 7));
-  const first = new Date(Date.UTC(year, month - 1, 1));
-  const pad = (first.getUTCDay() + 6) % 7;
-  const lastDate = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const cells: Html[] = [];
-  for (let i = 0; i < pad; i += 1) cells.push(html`<span class="cal-pad"></span>`);
-  for (let day = 1; day <= lastDate; day += 1) {
-    const ymd = `${opts.month}-${String(day).padStart(2, "0")}`;
-    const row = opts.counts.get(ymd);
-    const count = countForKind(row, opts.kind);
-    const selected = ymd === opts.selected;
-    const classes = [
-      "cal-cell",
-      selected ? "is-selected" : "",
-      count > 0 ? "has-hits" : "is-empty",
-    ]
-      .filter(Boolean)
-      .join(" ");
-    if (count > 0) {
-      cells.push(html`<a class="${classes}" href="${newsHref({ day: ymd, month: opts.month, q: opts.q, kind: opts.kind })}">
-        <span class="cal-num">${day}</span>
-        <span class="cal-count">${count}</span>
-      </a>`);
-    } else {
-      cells.push(html`<span class="${classes}">
-        <span class="cal-num">${day}</span>
-      </span>`);
-    }
-  }
-
+  const dates = [...opts.counts.keys()];
+  const months = monthsWithCounts(dates);
   const prev = shiftYearMonth(opts.month, -1);
   const next = shiftYearMonth(opts.month, 1);
-  const selectedInMonth = opts.selected.startsWith(opts.month) ? opts.selected : undefined;
+  const weeks = calendarWeeks(opts.month);
+
+  const navLink = (target: string, label: string, aria: string, enabled: boolean) => {
+    if (!enabled) return html`<span class="cal-nav-btn is-off" aria-disabled="true">${label}</span>`;
+    const day = dayInMonth(target, opts.selected, dates);
+    return html`<a class="cal-nav-btn" href="${newsHref({ month: target, day, q: opts.q, kind: opts.kind })}" aria-label="${aria}">${label}</a>`;
+  };
 
   return html`<nav class="wire-cal" aria-label="Scan calendar">
     <div class="cal-nav">
-      <a href="${newsHref({ month: prev, day: selectedInMonth, q: opts.q, kind: opts.kind })}" aria-label="Previous month">‹</a>
+      ${navLink(prev, "‹", "Previous month", months.includes(prev))}
       <span class="cal-label">${monthLabel(opts.month)}</span>
-      <a href="${newsHref({ month: next, day: selectedInMonth, q: opts.q, kind: opts.kind })}" aria-label="Next month">›</a>
+      ${navLink(next, "›", "Next month", months.includes(next))}
     </div>
-    <div class="cal-grid">
-      ${DOW.map((d) => html`<span class="cal-dow">${d}</span>`)}
-      ${cells}
-    </div>
+    <table class="cal-table">
+      <thead>
+        <tr>
+          ${DOW.map((d) => html`<th>${d}</th>`)}
+        </tr>
+      </thead>
+      <tbody>
+        ${weeks.map(
+          (week) => html`<tr>
+            ${week.map((day) => {
+              if (day == null) return html`<td class="cal-pad"></td>`;
+              const ymd = `${opts.month}-${String(day).padStart(2, "0")}`;
+              const count = countForKind(opts.counts.get(ymd), opts.kind);
+              const selected = ymd === opts.selected;
+              const classes = [
+                "cal-cell",
+                selected ? "is-selected" : "",
+                count > 0 ? "has-hits" : "is-empty",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              if (count > 0) {
+                return html`<td>
+                  <a class="${classes}" href="${newsHref({ day: ymd, month: opts.month, q: opts.q, kind: opts.kind })}">
+                    <span class="cal-num">${day}</span>
+                    <span class="cal-count">${count}</span>
+                  </a>
+                </td>`;
+              }
+              return html`<td>
+                <span class="${classes}">
+                  <span class="cal-num">${day}</span>
+                </span>
+              </td>`;
+            })}
+          </tr>`,
+        )}
+      </tbody>
+    </table>
   </nav>`;
 }
 
@@ -98,7 +151,10 @@ export function pickSelectedDay(dayParam: string | undefined, counts: DayCount[]
   return counts[0]?.date ?? today;
 }
 
-export function pickMonth(monthParam: string | undefined, selected: string): string {
-  if (typeof monthParam === "string" && /^\d{4}-\d{2}$/.test(monthParam)) return monthParam;
-  return selected.slice(0, 7);
+export function pickMonth(monthParam: string | undefined, selected: string, counts: DayCount[] = []): string {
+  const fallback = selected.slice(0, 7);
+  if (!isYearMonth(monthParam)) return fallback;
+  if (counts.length === 0) return monthParam;
+  if (counts.some((row) => row.date.startsWith(`${monthParam}-`))) return monthParam;
+  return fallback;
 }

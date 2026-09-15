@@ -189,11 +189,11 @@ describe("scheduled curator + Firecrawl", () => {
     expect(html).toContain("inquirer.net");
     expect(html).toContain("Firecrawl");
     expect(html).toContain("unique-site");
-    expect(html).toContain("wire-cal");
-    expect(html).toContain("wire-list");
+    expect(html).toContain("cal-table");
     expect(html).toContain("cal-count");
+    expect(html).toContain("is-selected");
     expect(html).not.toContain("Scans ·");
-    expect(html).not.toContain('href="/news"');
+    expect(html).not.toMatch(/aria-label="Next month"/);
 
     const filtered = await app.request("/news?q=Comelec");
     expect(filtered.status).toBe(200);
