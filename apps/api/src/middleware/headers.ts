@@ -5,7 +5,7 @@ import { CONTENT_ORIGIN_HEADER, CONTENT_ORIGIN_VALUE } from "@aicouncil/schema";
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "base-uri 'self'",
-  "form-action 'none'",
+  "form-action 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "img-src 'self' data:",

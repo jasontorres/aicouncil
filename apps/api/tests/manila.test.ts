@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { formatAgendaHeading, groupByAgendaDate } from "../src/lib/manila.js";
+import { formatAgendaHeading, groupByAgendaDate, manilaDate, shiftYearMonth } from "../src/lib/manila.js";
 
 describe("agenda date grouping", () => {
   test("groups newest date first and parks undated last", () => {
@@ -35,5 +35,11 @@ describe("agenda date grouping", () => {
     });
     expect(formatAgendaHeading("2026-08-24", "2026-08-28").label).toBe("Monday");
     expect(formatAgendaHeading(null, "2026-08-28")).toEqual({ label: "Open", aside: "" });
+  });
+
+  test("shifts year-month and maps timestamps onto Manila days", () => {
+    expect(shiftYearMonth("2026-01", -1)).toBe("2025-12");
+    expect(shiftYearMonth("2026-12", 1)).toBe("2027-01");
+    expect(manilaDate("2026-09-14T23:02:37.638Z")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

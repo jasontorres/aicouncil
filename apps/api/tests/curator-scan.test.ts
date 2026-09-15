@@ -189,7 +189,21 @@ describe("scheduled curator + Firecrawl", () => {
     expect(html).toContain("inquirer.net");
     expect(html).toContain("Firecrawl");
     expect(html).toContain("unique-site");
+    expect(html).toContain("wire-cal");
+    expect(html).toContain("wire-list");
+    expect(html).toContain("cal-count");
+    expect(html).not.toContain("Scans ·");
     expect(html).not.toContain('href="/news"');
+
+    const filtered = await app.request("/news?q=Comelec");
+    expect(filtered.status).toBe(200);
+    const filteredHtml = await filtered.text();
+    expect(filteredHtml).toContain("Comelec");
+    expect(filteredHtml).not.toContain("Senate reopens flood-control hearing");
+
+    const emptyDay = await app.request("/news?day=2099-01-01");
+    expect(emptyDay.status).toBe(200);
+    expect(await emptyDay.text()).toContain("No saved items on this day");
   });
 
   test("MCP tools/list splits council vs curator", async () => {

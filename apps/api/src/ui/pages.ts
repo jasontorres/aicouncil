@@ -14,9 +14,10 @@ import { predictionsService, recordsService } from "../services/records.js";
 import type { PositionRow, ResponseRow } from "../services/deliberation.js";
 import { param } from "../lib/params.js";
 import { registerAgentService } from "../services/agents.js";
-import { formatAgendaHeading, groupByAgendaDate, manilaToday } from "../lib/manila.js";
+import { formatAgendaHeading, groupByAgendaDate, manilaDate } from "../lib/manila.js";
 import { curatorService } from "../services/curator.js";
 import { hostnameOf, httpUrl } from "../ports/scrape-page.js";
+import { calendarMonth, newsHref, parseNewsKind, pickMonth, pickSelectedDay } from "./news-cal.js";
 
 function mdLite(src: string) {
   const blocks = src.split(/\n{2,}/);
@@ -54,12 +55,6 @@ function clipLine(text: string, n: number): string {
   const trimmed = text.replace(/\s+/g, " ").trim();
   if (trimmed.length <= n) return trimmed;
   return `${trimmed.slice(0, n - 1)}…`;
-}
-
-function manilaDayOf(iso: string): string {
-  const parsed = new Date(iso);
-  if (Number.isNaN(parsed.getTime())) return manilaToday();
-  return manilaToday(parsed);
 }
 
 function manilaStamp(iso: string): string {
@@ -403,7 +398,29 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
 
   r.get("/news", async (c) => {
     const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("tavily")).newsWire();
-    const days = groupByAgendaDate(wire.stories.map((story) => ({ ...story, agenda_date: manilaDayOf(story.seen_at) })));
+    const kind = parseNewsKind(c.req.query("kind"));
+    const q = (c.req.query("q") ?? "").trim();
+    const qLower = q.toLowerCase();
+    const selected = pickSelectedDay(c.req.query("day"), wire.day_counts, wire.today);
+    const month = pickMonth(c.req.query("month"), selected);
+    const counts = new Map(wire.day_counts.map((row) => [row.date, row]));
+    const showHeadlines = kind !== "scrapes";
+    const showScrapes = kind !== "headlines";
+    const matches = (text: string) => !qLower || text.toLowerCase().includes(qLower);
+    const headlines = showHeadlines
+      ? wire.stories.filter(
+          (story) => manilaDate(story.seen_at) === selected && matches(`${story.title} ${story.snippet} ${story.domain}`),
+        )
+      : [];
+    const scrapes = showScrapes
+      ? wire.scrapes.filter(
+          (page) =>
+            manilaDate(page.retrieved_at) === selected && matches(`${page.title} ${page.excerpt} ${page.via}`),
+        )
+      : [];
+    const empty = headlines.length === 0 && scrapes.length === 0;
+    const { label } = formatAgendaHeading(selected, wire.today);
+
     return c.html(
       layout({
         title: "What's in the news",
@@ -412,71 +429,67 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
         robots: "noindex",
         body: html`
           <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / news</p>
-          <div class="record-head hero">
+          <div class="record-head">
             <div class="kicker"><span class="tag-on">Unlisted</span> <span>Asia/Manila ${wire.today}</span></div>
             <h1>What's in the news</h1>
             <p class="desc">
-              Raw headlines the curator pulled with Firecrawl search. These are not Issues and not a Council Record.
-              The homepage only shows what the curator published. Search hits are saved in curator_scans.
-              Full-page scrapes (Firecrawl, Tavily, or Juris markdown) start saving here when the curator calls scrape_url.
+              Raw headlines from curator scans. Not Issues. Pick a day on the left.
             </p>
           </div>
-          <h2>Stories · ${wire.stories.length}</h2>
-          ${wire.stories.length === 0
-            ? html`<p class="section-note">No scan hits saved yet. When the curator runs scan_news, titles land here.</p>`
-            : days.map(
-                (day) => html`<section class="issue-day" data-agenda-date="${day.date ?? "undated"}">
-                  ${issueDayHeading(day.date, wire.today)}
-                  <div class="issue-list">
-                    ${day.items.map((story) => {
-                      const href = httpUrl(story.url);
-                      return html`<article class="issue-row wire-item">
-                        <div>
-                          ${href
-                            ? html`<a class="issue-title" href="${href}" rel="noopener noreferrer">${story.title}</a>`
-                            : html`<span class="issue-title">${story.title}</span>`}
-                          ${story.snippet
-                            ? html`<p class="wire-snippet">${clipLine(story.snippet, 280)}</p>`
-                            : ""}
-                          <div class="wire-meta">
-                            ${story.domain || "source"}
-                            ${story.source ? html` · ${story.source}` : ""}
-                            ${story.date ? html` · ${story.date}` : ""}
+          <div class="wire-desk">
+            ${calendarMonth({ month, selected, counts, kind, q })}
+            <div class="wire-pane">
+              <div class="wire-toolbar">
+                <nav class="wire-tabs" aria-label="Kind">
+                  <a class="${kind === "all" ? "is-on" : ""}" href="${newsHref({ day: selected, month, q, kind: "all" })}">All</a>
+                  <a class="${kind === "headlines" ? "is-on" : ""}" href="${newsHref({ day: selected, month, q, kind: "headlines" })}">Headlines</a>
+                  <a class="${kind === "scrapes" ? "is-on" : ""}" href="${newsHref({ day: selected, month, q, kind: "scrapes" })}">Scraped</a>
+                </nav>
+                <form class="wire-filter" method="get" action="/news">
+                  <input type="hidden" name="day" value="${selected}" />
+                  <input type="hidden" name="month" value="${month}" />
+                  ${kind !== "all" ? html`<input type="hidden" name="kind" value="${kind}" />` : ""}
+                  <input type="search" name="q" value="${q}" placeholder="Filter this day" aria-label="Filter headlines" />
+                  <button type="submit">Filter</button>
+                </form>
+              </div>
+              <p class="section-note">${label} ${selected} · ${headlines.length} headlines · ${scrapes.length} scraped</p>
+              <div class="wire-list">
+                ${empty
+                  ? html`<p class="section-note">${q ? "No matches for that filter." : "No saved items on this day."}</p>`
+                  : html`
+                      ${headlines.map((story) => {
+                        const href = httpUrl(story.url);
+                        return html`<article class="issue-row wire-item">
+                          <div>
+                            ${href
+                              ? html`<a class="issue-title" href="${href}" rel="noopener noreferrer">${story.title}</a>`
+                              : html`<span class="issue-title">${story.title}</span>`}
+                            ${story.snippet ? html`<p class="wire-snippet">${clipLine(story.snippet, 280)}</p>` : ""}
+                            <div class="wire-meta">
+                              ${story.domain || "source"}
+                              ${story.source ? html` · ${story.source}` : ""}
+                              ${story.date ? html` · ${story.date}` : ""}
+                            </div>
                           </div>
-                        </div>
-                      </article>`;
-                    })}
-                  </div>
-                </section>`,
-              )}
-          <h2>Scraped pages · ${wire.scrapes.length}</h2>
-          ${wire.scrapes.length === 0
-            ? html`<p class="section-note">No full-page scrapes saved yet. Older scrape_url calls were not stored. New ones are.</p>`
-            : html`<div class="issue-list">
-                ${wire.scrapes.map((page) => {
-                  const href = httpUrl(page.url);
-                  return html`<article class="issue-row wire-item">
-                    <div>
-                      ${href
-                        ? html`<a class="issue-title" href="${href}" rel="noopener noreferrer">${page.title}</a>`
-                        : html`<span class="issue-title">${page.title}</span>`}
-                      <p class="wire-excerpt">${clipLine(page.excerpt, 400)}</p>
-                      <div class="wire-meta">${viaLabel(page.via)} · ${hostnameOf(page.url) ?? ""} · ${manilaStamp(page.retrieved_at)}</div>
-                    </div>
-                  </article>`;
-                })}
-              </div>`}
-          <h2>Scans · ${wire.scans.length}</h2>
-          ${wire.scans.length === 0
-            ? html`<p class="section-note">No curator_scans rows.</p>`
-            : html`<div class="issue-list">
-                ${wire.scans.map(
-                  (scan) => html`<article class="issue-row">
-                    <span class="issue-title">${manilaStamp(scan.queried_at)} · ${scan.hit_count} hits${scan.error ? html` · ${scan.error}` : ""}</span>
-                    <span class="pill">${scan.id.slice(0, 8)}</span>
-                  </article>`,
-                )}
-              </div>`}
+                        </article>`;
+                      })}
+                      ${scrapes.map((page) => {
+                        const href = httpUrl(page.url);
+                        return html`<article class="issue-row wire-item">
+                          <div>
+                            ${href
+                              ? html`<a class="issue-title" href="${href}" rel="noopener noreferrer">${page.title}</a>`
+                              : html`<span class="issue-title">${page.title}</span>`}
+                            <p class="wire-excerpt">${clipLine(page.excerpt, 400)}</p>
+                            <div class="wire-meta">${viaLabel(page.via)} · ${hostnameOf(page.url) ?? ""} · ${manilaStamp(page.retrieved_at)}</div>
+                          </div>
+                        </article>`;
+                      })}
+                    `}
+              </div>
+            </div>
+          </div>
         `,
       }),
     );

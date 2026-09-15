@@ -2,7 +2,7 @@ import { CAPS, type ContextPack } from "@aicouncil/schema";
 import type { SqlClient } from "../db/types.js";
 import { llmError } from "../lib/errors.js";
 import { newId } from "../lib/hash.js";
-import { manilaToday } from "../lib/manila.js";
+import { manilaDate, manilaToday } from "../lib/manila.js";
 import {
   DEFAULT_NEWS_QUERIES,
   type FirecrawlPort,
@@ -46,13 +46,7 @@ export type NewsWireStory = {
 export type NewsWire = {
   timezone: "Asia/Manila";
   today: string;
-  scans: {
-    id: string;
-    queried_at: string;
-    queries: string[];
-    hit_count: number;
-    error: string | null;
-  }[];
+  day_counts: { date: string; stories: number; scrapes: number }[];
   stories: NewsWireStory[];
   scrapes: {
     url: string;
@@ -211,18 +205,30 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, tavily?
         }
       }
 
+      const scrapes = scrapeRows.map((row) => ({
+        url: row.url,
+        title: row.title,
+        excerpt: row.excerpt,
+        via: row.via,
+        retrieved_at: String(row.retrieved_at),
+      }));
+
+      const buckets = new Map<string, { date: string; stories: number; scrapes: number }>();
+      const bump = (date: string, field: "stories" | "scrapes") => {
+        const row = buckets.get(date) ?? { date, stories: 0, scrapes: 0 };
+        row[field] += 1;
+        buckets.set(date, row);
+      };
+      for (const story of stories) bump(manilaDate(story.seen_at), "stories");
+      for (const page of scrapes) bump(manilaDate(page.retrieved_at), "scrapes");
+      const day_counts = [...buckets.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
       return {
         timezone: "Asia/Manila",
         today: manilaToday(),
-        scans: scans.map(({ hits: _hits, ...scan }) => scan),
+        day_counts,
         stories,
-        scrapes: scrapeRows.map((row) => ({
-          url: row.url,
-          title: row.title,
-          excerpt: row.excerpt,
-          via: row.via,
-          retrieved_at: String(row.retrieved_at),
-        })),
+        scrapes,
       };
     },
 

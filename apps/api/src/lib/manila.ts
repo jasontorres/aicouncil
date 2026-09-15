@@ -3,6 +3,26 @@ export function manilaToday(now = new Date()): string {
   return now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
 }
 
+/** Manila calendar day for an ISO timestamp. Invalid input falls back to today. */
+export function manilaDate(value: Date | string, fallback = manilaToday()): string {
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return fallback;
+  return manilaToday(parsed);
+}
+
+export function isYearMonth(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}$/.test(value);
+}
+
+/** Shift YYYY-MM by whole months. */
+export function shiftYearMonth(ym: string, delta: number): string {
+  if (!isYearMonth(ym)) return ym;
+  const year = Number(ym.slice(0, 4));
+  const month = Number(ym.slice(5, 7));
+  const shifted = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 export function isAgendaDate(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
