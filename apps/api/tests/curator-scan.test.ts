@@ -164,6 +164,34 @@ describe("scheduled curator + Firecrawl", () => {
     expect(pdfPages[0]?.excerpt).toContain("CADENA third-reading");
   });
 
+  test("unlisted /news shows saved scan hits and scrapes", async () => {
+    const scan = await app.request("/v1/curator/scan", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
+      body: JSON.stringify({ queries: ["Philippines news"], limit: 5 }),
+    });
+    expect(scan.status).toBe(200);
+
+    const scrape = await app.request("/v1/curator/scrape", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
+      body: JSON.stringify({ urls: ["https://www.inquirer.net/news/senate-flood-hearing"] }),
+    });
+    expect(scrape.status).toBe(200);
+
+    const page = await app.request("/news");
+    expect(page.status).toBe(200);
+    expect(page.headers.get("Cache-Control")).toMatch(/no-store/);
+    const html = await page.text();
+    expect(html).toContain("noindex");
+    expect(html).toContain("What's in the news");
+    expect(html).toContain("Senate reopens flood-control hearing");
+    expect(html).toContain("inquirer.net");
+    expect(html).toContain("Firecrawl");
+    expect(html).toContain("unique-site");
+    expect(html).not.toContain('href="/news"');
+  });
+
   test("MCP tools/list splits council vs curator", async () => {
     const anon = await jsonOf(
       await app.request("/mcp", {

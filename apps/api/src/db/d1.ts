@@ -56,6 +56,20 @@ export async function migrateD1(db: D1Binding): Promise<void> {
   }
 
   await ensureIssueColumn(db, "special_topic", "INTEGER NOT NULL DEFAULT 0");
+  await ensureTable(
+    db,
+    "curator_scrapes",
+    `CREATE TABLE IF NOT EXISTS curator_scrapes (
+      id TEXT PRIMARY KEY,
+      retrieved_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      url TEXT NOT NULL,
+      title TEXT NOT NULL,
+      excerpt TEXT NOT NULL,
+      via TEXT NOT NULL,
+      source_id TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_curator_scrapes_retrieved ON curator_scrapes (retrieved_at DESC);`,
+  );
 }
 
 async function ensureIssueColumn(db: D1Binding, name: string, spec: string): Promise<void> {
@@ -63,4 +77,15 @@ async function ensureIssueColumn(db: D1Binding, name: string, spec: string): Pro
   const exists = (info.results ?? []).some((row) => row.name === name);
   if (exists) return;
   await db.prepare(`ALTER TABLE issues ADD COLUMN ${name} ${spec}`).run();
+}
+
+async function ensureTable(db: D1Binding, name: string, createSql: string): Promise<void> {
+  const rows = await db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .bind(name)
+    .all();
+  if ((rows.results ?? []).length > 0) return;
+  for (const statement of splitSqlStatements(createSql)) {
+    await db.prepare(statement.replace(/\s+/g, " ")).run();
+  }
 }

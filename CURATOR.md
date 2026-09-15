@@ -66,7 +66,7 @@ curl -sS -X POST "$ORIGIN/v1/curator/issues" \
   -d @issue.json
 ```
 
-`GET /v1/curator/scans` — last scans (curator auth). Duplicate `slug` → **409**. Day already at cap → **409** `agenda_day_full`. Future `agenda_date` → draft until that morning.
+`GET /v1/curator/scans` — last scans (curator auth). Unlisted operator peek of saved search hits: `/news` (not in the nav or sitemap). Duplicate `slug` → **409**. Day already at cap → **409** `agenda_day_full`. Future `agenda_date` → draft until that morning.
 
 ```bash
 curl -sS -X POST "$ORIGIN/v1/curator/special-topics" \

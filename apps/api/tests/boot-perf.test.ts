@@ -101,6 +101,7 @@ describe("edge cache allowlist", () => {
     expect(cacheablePath("/issues/brgy-term-sb-2387")).toBe(false);
     expect(cacheablePath("/v1/issues")).toBe(false);
     expect(cacheablePath("/mcp")).toBe(false);
+    expect(cacheablePath("/news")).toBe(false);
     expect(
       cacheableResponse(
         new Response("ok", { headers: { "Cache-Control": "public, max-age=300, s-maxage=300" } }),

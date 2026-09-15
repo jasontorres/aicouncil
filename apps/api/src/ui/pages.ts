@@ -14,7 +14,9 @@ import { predictionsService, recordsService } from "../services/records.js";
 import type { PositionRow, ResponseRow } from "../services/deliberation.js";
 import { param } from "../lib/params.js";
 import { registerAgentService } from "../services/agents.js";
-import { formatAgendaHeading, groupByAgendaDate } from "../lib/manila.js";
+import { formatAgendaHeading, groupByAgendaDate, manilaToday } from "../lib/manila.js";
+import { curatorService } from "../services/curator.js";
+import { hostnameOf, httpUrl } from "../ports/scrape-page.js";
 
 function mdLite(src: string) {
   const blocks = src.split(/\n{2,}/);
@@ -46,6 +48,31 @@ function parseJson(value: unknown): unknown {
 
 function pretty(value: unknown): string {
   return JSON.stringify(parseJson(value), null, 2) ?? "";
+}
+
+function clipLine(text: string, n: number): string {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (trimmed.length <= n) return trimmed;
+  return `${trimmed.slice(0, n - 1)}…`;
+}
+
+function manilaDayOf(iso: string): string {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return manilaToday();
+  return manilaToday(parsed);
+}
+
+function manilaStamp(iso: string): string {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return parsed.toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" });
+}
+
+function viaLabel(via: string): string {
+  if (via === "juris") return "Juris markdown";
+  if (via === "tavily") return "Tavily";
+  if (via === "firecrawl") return "Firecrawl";
+  return via || "scrape";
 }
 
 function commentCount(n: number | undefined): string {
@@ -368,6 +395,87 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
                     <span class="pill">${issue.agenda_date ?? "open"}</span>
                   </article>`,
                   )}
+              </div>`}
+        `,
+      }),
+    );
+  });
+
+  r.get("/news", async (c) => {
+    const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("tavily")).newsWire();
+    const days = groupByAgendaDate(wire.stories.map((story) => ({ ...story, agenda_date: manilaDayOf(story.seen_at) })));
+    return c.html(
+      layout({
+        title: "What's in the news",
+        description: "Raw Firecrawl search hits saved from curator scans. Not Issues. Not a vote.",
+        path: "/news",
+        robots: "noindex",
+        body: html`
+          <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / news</p>
+          <div class="record-head hero">
+            <div class="kicker"><span class="tag-on">Unlisted</span> <span>Asia/Manila ${wire.today}</span></div>
+            <h1>What's in the news</h1>
+            <p class="desc">
+              Raw headlines the curator pulled with Firecrawl search. These are not Issues and not a Council Record.
+              The homepage only shows what the curator published. Search hits are saved in curator_scans.
+              Full-page scrapes (Firecrawl, Tavily, or Juris markdown) start saving here when the curator calls scrape_url.
+            </p>
+          </div>
+          <h2>Stories · ${wire.stories.length}</h2>
+          ${wire.stories.length === 0
+            ? html`<p class="section-note">No scan hits saved yet. When the curator runs scan_news, titles land here.</p>`
+            : days.map(
+                (day) => html`<section class="issue-day" data-agenda-date="${day.date ?? "undated"}">
+                  ${issueDayHeading(day.date, wire.today)}
+                  <div class="issue-list">
+                    ${day.items.map((story) => {
+                      const href = httpUrl(story.url);
+                      return html`<article class="issue-row wire-item">
+                        <div>
+                          ${href
+                            ? html`<a class="issue-title" href="${href}" rel="noopener noreferrer">${story.title}</a>`
+                            : html`<span class="issue-title">${story.title}</span>`}
+                          ${story.snippet
+                            ? html`<p class="wire-snippet">${clipLine(story.snippet, 280)}</p>`
+                            : ""}
+                          <div class="wire-meta">
+                            ${story.domain || "source"}
+                            ${story.source ? html` · ${story.source}` : ""}
+                            ${story.date ? html` · ${story.date}` : ""}
+                          </div>
+                        </div>
+                      </article>`;
+                    })}
+                  </div>
+                </section>`,
+              )}
+          <h2>Scraped pages · ${wire.scrapes.length}</h2>
+          ${wire.scrapes.length === 0
+            ? html`<p class="section-note">No full-page scrapes saved yet. Older scrape_url calls were not stored. New ones are.</p>`
+            : html`<div class="issue-list">
+                ${wire.scrapes.map((page) => {
+                  const href = httpUrl(page.url);
+                  return html`<article class="issue-row wire-item">
+                    <div>
+                      ${href
+                        ? html`<a class="issue-title" href="${href}" rel="noopener noreferrer">${page.title}</a>`
+                        : html`<span class="issue-title">${page.title}</span>`}
+                      <p class="wire-excerpt">${clipLine(page.excerpt, 400)}</p>
+                      <div class="wire-meta">${viaLabel(page.via)} · ${hostnameOf(page.url) ?? ""} · ${manilaStamp(page.retrieved_at)}</div>
+                    </div>
+                  </article>`;
+                })}
+              </div>`}
+          <h2>Scans · ${wire.scans.length}</h2>
+          ${wire.scans.length === 0
+            ? html`<p class="section-note">No curator_scans rows.</p>`
+            : html`<div class="issue-list">
+                ${wire.scans.map(
+                  (scan) => html`<article class="issue-row">
+                    <span class="issue-title">${manilaStamp(scan.queried_at)} · ${scan.hit_count} hits${scan.error ? html` · ${scan.error}` : ""}</span>
+                    <span class="pill">${scan.id.slice(0, 8)}</span>
+                  </article>`,
+                )}
               </div>`}
         `,
       }),

@@ -1,7 +1,7 @@
 import { llmError } from "../lib/errors.js";
 import type { FirecrawlPort } from "./firecrawl.js";
 import { fetchJurisMarkdown, shouldSkipFirecrawl } from "./juris-assets.js";
-import type { ScrapedPage } from "./scrape-page.js";
+import type { RetrieveVia, ScrapedPage } from "./scrape-page.js";
 import type { TavilyPort } from "./tavily.js";
 
 type FetchLike = typeof fetch;
@@ -27,8 +27,8 @@ export function createRetrievePort(opts: {
     async scrape(url) {
       if (shouldSkipFirecrawl(url)) {
         const fromAssets = await fetchJurisMarkdown(url, { fetchImpl });
-        if (fromAssets) return fromAssets;
-        if (tavily.configured) return tavily.extract(url);
+        if (fromAssets) return tagged(fromAssets, "juris");
+        if (tavily.configured) return tagged(await tavily.extract(url), "tavily");
         throw llmError(
           422,
           "pdf_skipped",
@@ -38,14 +38,14 @@ export function createRetrievePort(opts: {
 
       if (firecrawl.configured) {
         try {
-          return await firecrawl.scrape(url);
+          return tagged(await firecrawl.scrape(url), "firecrawl");
         } catch (err) {
-          if (tavily.configured) return tavily.extract(url);
+          if (tavily.configured) return tagged(await tavily.extract(url), "tavily");
           throw err;
         }
       }
 
-      if (tavily.configured) return tavily.extract(url);
+      if (tavily.configured) return tagged(await tavily.extract(url), "tavily");
 
       throw llmError(
         503,
@@ -54,4 +54,8 @@ export function createRetrievePort(opts: {
       );
     },
   };
+}
+
+function tagged(page: ScrapedPage, via: RetrieveVia): ScrapedPage {
+  return { ...page, via };
 }

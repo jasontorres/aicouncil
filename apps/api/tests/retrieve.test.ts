@@ -71,6 +71,7 @@ describe("retrieve: PDFs never hit Firecrawl", () => {
     expect(page.url).toBe(RA_PDF);
     expect(page.excerpt).toMatch(/Solid waste management/i);
     expect(page.markdown).toMatch(/Republic Act 9003/);
+    expect(page.via).toBe("juris");
   });
 
   test("falls back to Tavily when Juris markdown is missing", async () => {

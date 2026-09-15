@@ -1,5 +1,7 @@
 import { contentHash, sha256Hex } from "../lib/hash.js";
 
+export type RetrieveVia = "juris" | "tavily" | "firecrawl";
+
 export type ScrapedPage = {
   url: string;
   title: string;
@@ -11,6 +13,7 @@ export type ScrapedPage = {
   retrieved_at: string;
   content_hash: string;
   citation?: string;
+  via?: RetrieveVia;
 };
 
 export function sourceIdFromUrl(url: string): string {
@@ -29,6 +32,17 @@ export function hostnameOf(url: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** Only http(s) links belong on the news wire. */
+export function httpUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.href;
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 export function clipExcerpt(text: string): string {

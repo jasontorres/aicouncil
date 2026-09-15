@@ -139,7 +139,7 @@ export function createApp(opts: CreateAppOptions) {
     sendDoc(
       c,
       "text/plain; charset=utf-8",
-      "User-agent: *\nAllow: /\nSitemap: https://aicouncil.bettergov.ph/sitemap.xml\n",
+      "User-agent: *\nAllow: /\nDisallow: /news\nSitemap: https://aicouncil.bettergov.ph/sitemap.xml\n",
     ),
   );
   app.get("/sitemap.xml", async (c) => {

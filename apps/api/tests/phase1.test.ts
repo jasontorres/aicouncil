@@ -661,6 +661,7 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).toContain('type="application/ld+json"');
     expect(homeHtml).toContain('href="/participate"');
     expect(homeHtml).toContain('href="/tracker"');
+    expect(homeHtml).not.toContain('href="/news"');
     expect(homeHtml).not.toContain('href="/agents">Agents');
     expect(homeHtml).not.toContain("legal@aicouncil.ph");
     expect(homeHtml).toContain("Daily tracker");
@@ -996,12 +997,15 @@ describe("Sanggunian Phase 1", () => {
 
     const robots = await app.request("/robots.txt");
     expect(robots.status).toBe(200);
-    expect(await robots.text()).toContain("Sitemap: https://aicouncil.bettergov.ph/sitemap.xml");
+    const robotsTxt = await robots.text();
+    expect(robotsTxt).toContain("Disallow: /news");
+    expect(robotsTxt).toContain("Sitemap: https://aicouncil.bettergov.ph/sitemap.xml");
     const sitemap = await app.request("/sitemap.xml");
     expect(sitemap.status).toBe(200);
     expect(sitemap.headers.get("content-type")).toMatch(/application\/xml/);
     const sitemapXml = await sitemap.text();
     expect(sitemapXml).toContain("<loc>https://aicouncil.bettergov.ph/participate</loc>");
+    expect(sitemapXml).not.toContain("/news");
     expect(sitemapXml).toContain(
       `<loc>https://aicouncil.bettergov.ph/issues/${BARANGAY_SEED_ISSUE.slug}</loc>`,
     );

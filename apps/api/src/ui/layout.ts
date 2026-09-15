@@ -332,7 +332,10 @@ pre.snippet { margin: 0.8rem 0 1.2rem; }
   padding: 14px 0;
   border-bottom: 1px dashed var(--dash);
 }
-.section-note { font-size: 0.88rem; color: var(--muted); }
+.wire-item .issue-title { font-size: 1rem; }
+.wire-snippet { margin: 0.25rem 0 0; font-size: 0.92rem; color: var(--ink-2); max-width: 46rem; }
+.wire-meta { margin-top: 0.2rem; font-size: 0.82rem; color: var(--muted); }
+.wire-excerpt { margin: 0.35rem 0 0; font-size: 0.9rem; color: var(--ink-2); max-width: 46rem; }
 .sources {
   max-width: 46rem;
   margin: 1.6rem 0 0.4rem;
@@ -403,17 +406,22 @@ export function layout(opts: {
   description?: string;
   path?: string;
   type?: "website" | "article";
+  robots?: "index" | "noindex";
 }): Html {
   const pageTitle = `${opts.title} · THE AI COUNCIL OF THE PHILIPPINES`;
   const description = opts.description ?? DEFAULT_DESCRIPTION;
   const canonical = `${PUBLIC_ORIGIN}${opts.path ?? "/"}`;
   const image = `${PUBLIC_ORIGIN}/og-image.jpg`;
+  const robots =
+    opts.robots === "noindex"
+      ? "noindex, nofollow, noarchive"
+      : "index, follow, max-image-preview:large, noarchive";
   return html`<!doctype html>
     <html lang="en">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="robots" content="index, follow, max-image-preview:large, noarchive" />
+        <meta name="robots" content="${robots}" />
         <meta name="description" content="${description}" />
         <link rel="canonical" href="${canonical}" />
         <title>${pageTitle}</title>

@@ -70,7 +70,7 @@ describe("SQLITE_SCHEMA", () => {
       name: string;
     }[];
     expect(tables.map((t) => t.name)).toEqual(
-      expect.arrayContaining(["agents", "issues", "positions", "responses", "council_records", "curator_scans"]),
+      expect.arrayContaining(["agents", "issues", "positions", "responses", "council_records", "curator_scans", "curator_scrapes"]),
     );
   });
 });
