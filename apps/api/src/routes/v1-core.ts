@@ -73,6 +73,38 @@ export function v1Router() {
     return c.json(tracker);
   });
 
+  r.get("/news", async (c) => {
+    const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
+    const topic = c.req.query("topic");
+    const notableOnly = c.req.query("notable") === "1" || c.req.query("notable") === "true";
+    const stories = wire.stories.filter((story) => {
+      if (topic && story.desk?.topic !== topic && !story.desk?.tags.some((tag) => tag === topic)) {
+        return false;
+      }
+      if (notableOnly && !story.desk?.notable) return false;
+      return true;
+    });
+    return c.json({
+      timezone: wire.timezone,
+      today: wire.today,
+      stories: stories.map((story) => ({
+        url: story.url,
+        title: story.title,
+        snippet: story.snippet,
+        domain: story.domain,
+        seen_at: story.seen_at,
+        topic: story.desk?.topic ?? null,
+        tags: story.desk?.tags ?? [],
+        notable: story.desk?.notable ?? false,
+        clip: story.desk?.clip || story.title,
+        notability: story.desk?.notability ?? null,
+        council: story.judgment?.recommend ?? false,
+      })),
+      notice:
+        "Classified scan hits for public clips. Not Issues. Not a vote. Filter with ?topic=tech&notable=1.",
+    });
+  });
+
   r.get("/issues/:id", async (c) => {
     const issue = await issuesService(c.get("sql")).get(param(c, "id"));
     return c.json(issue);
@@ -106,6 +138,16 @@ export function v1Router() {
   r.get("/curator/scans", async (c) => {
     assertCuratorAuth(c);
     return c.json(await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).recentScans());
+  });
+
+  r.post("/curator/news/classify", async (c) => {
+    assertCuratorAuth(c);
+    const raw = await c.req.json().catch(() => ({}));
+    const force = raw && typeof raw === "object" && (raw as { force?: unknown }).force === true;
+    const result = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).classifyStored({
+      force,
+    });
+    return c.json(result);
   });
 
   r.post("/curator/issues", async (c) => {

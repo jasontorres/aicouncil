@@ -151,6 +151,18 @@ CREATE TABLE IF NOT EXISTS curator_scans (
 
 CREATE INDEX IF NOT EXISTS idx_curator_scans_queried ON curator_scans (queried_at DESC);
 
+CREATE TABLE IF NOT EXISTS curator_scrapes (
+  id TEXT PRIMARY KEY,
+  retrieved_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  url TEXT NOT NULL,
+  title TEXT NOT NULL,
+  excerpt TEXT NOT NULL,
+  via TEXT NOT NULL,
+  source_id TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_curator_scrapes_retrieved ON curator_scrapes (retrieved_at DESC);
+
 INSERT OR IGNORE INTO schema_migrations (filename) VALUES ('0001_init.sql');
 `;
 

@@ -156,7 +156,7 @@ describe("scheduled curator + Firecrawl", () => {
     );
     const curatorTools = ((curatorList.result as { tools: { name: string }[] }).tools).map((t) => t.name);
     expect(curatorTools.sort()).toEqual(
-      ["get_brief", "list_issues", "list_tracker", "publish_issue", "scan_news", "scrape_url"].sort(),
+      ["classify_news", "get_brief", "list_issues", "list_tracker", "publish_issue", "scan_news", "scrape_url"].sort(),
     );
 
     const forbidden = await jsonOf(

@@ -7,6 +7,7 @@ import { MemoryDedupe } from "../src/ports/dedupe.js";
 import { createFirecrawlPort, type NewsHit } from "../src/ports/firecrawl.js";
 import {
   applyNewsJudgments,
+  composeNewsDesk,
   composeNewsJudgment,
   MAX_JUDGED_HITS,
   newsJudgeQuestions,
@@ -102,6 +103,40 @@ function mockTypeSafe(handler: (body: Record<string, unknown>) => SystemOneResul
   }) as typeof fetch;
 }
 
+function deskAnswers(
+  index: number,
+  topic: string,
+  notability: number,
+  clip: "title" | "snippet_lead",
+  tags: { politics?: number; tech?: number; economy?: number; climate?: number },
+): SystemOneResult["answers"] {
+  return {
+    [`s${index}_topic`]: {
+      type: "choice",
+      choice: topic,
+      probabilities: { [topic]: 0.85, other: 0.15 },
+      confidence: 0.8,
+    },
+    [`s${index}_notability`]: {
+      type: "score",
+      score: notability,
+      legend: { "0": "skip", "1": "social", "2": "report" },
+      probabilities: { "0": notability < 0.8 ? 0.8 : 0.05, "1": 0.15, "2": notability >= 1.5 ? 0.8 : 0.15 },
+      confidence: 0.75,
+    },
+    [`s${index}_clip`]: {
+      type: "choice",
+      choice: clip,
+      probabilities: { title: clip === "title" ? 0.8 : 0.2, snippet_lead: clip === "snippet_lead" ? 0.8 : 0.2 },
+      confidence: 0.7,
+    },
+    [`s${index}_tag_politics`]: { type: "noul", noul: tags.politics ?? 0.1 },
+    [`s${index}_tag_tech`]: { type: "noul", noul: tags.tech ?? 0.1 },
+    [`s${index}_tag_economy`]: { type: "noul", noul: tags.economy ?? 0.1 },
+    [`s${index}_tag_climate`]: { type: "noul", noul: tags.climate ?? 0.1 },
+  };
+}
+
 function rankedAnswers(): SystemOneResult {
   return {
     model: "jev-1.13.0",
@@ -126,6 +161,7 @@ function rankedAnswers(): SystemOneResult {
         probabilities: { "0": 0.9, "1": 0.08, "2": 0.02 },
         confidence: 0.85,
       },
+      ...deskAnswers(0, "other", 0.1, "title", {}),
       s1_worthy: { type: "noul", noul: 0.91 },
       s1_disposition: {
         type: "choice",
@@ -146,6 +182,7 @@ function rankedAnswers(): SystemOneResult {
         probabilities: { "0": 0.05, "1": 0.2, "2": 0.75 },
         confidence: 0.7,
       },
+      ...deskAnswers(1, "politics", 1.7, "snippet_lead", { politics: 0.9, climate: 0.8 }),
       s2_worthy: { type: "noul", noul: 0.88 },
       s2_disposition: {
         type: "choice",
@@ -166,24 +203,21 @@ function rankedAnswers(): SystemOneResult {
         probabilities: { "0": 0.02, "1": 0.08, "2": 0.9 },
         confidence: 0.82,
       },
+      ...deskAnswers(2, "politics", 1.9, "title", { politics: 0.92 }),
     },
   };
 }
 
 describe("TypeSafe news judgments", () => {
-  test("one request asks noul, choice, and score per story", () => {
+  test("one request asks council and public-desk questions per story", () => {
     const questions = newsJudgeQuestions(2);
-    expect(Object.keys(questions).sort()).toEqual([
-      "s0_actionability",
-      "s0_disposition",
-      "s0_worthy",
-      "s1_actionability",
-      "s1_disposition",
-      "s1_worthy",
-    ]);
     expect(questions.s0_worthy?.type).toBe("noul");
     expect(questions.s0_disposition?.type).toBe("choice");
     expect(questions.s0_actionability?.type).toBe("score");
+    expect(questions.s0_topic?.type).toBe("choice");
+    expect(questions.s0_notability?.type).toBe("score");
+    expect(questions.s0_clip?.type).toBe("choice");
+    expect(questions.s0_tag_tech?.type).toBe("noul");
     expect(questions.s0_worthy?.instructions).toContain("stories[0]");
     const state = newsJudgeState([GOSSIP, SENATE]);
     expect(state.stories[0]?.title).toBe(GOSSIP.title);
@@ -224,6 +258,17 @@ describe("TypeSafe news judgments", () => {
     expect(ordered[0]?.judgment?.recommend).toBe(true);
     expect(ordered[2]?.judgment?.recommend).toBe(false);
     expect(ordered[2]?.judgment?.disposition).toBe("skip_vibes");
+    expect(ordered[0]?.desk?.topic).toBe("politics");
+    expect(ordered[0]?.desk?.notable).toBe(true);
+    expect(ordered[2]?.desk?.notable).toBe(false);
+  });
+
+  test("public clip copies a verbatim span instead of generating copy", () => {
+    const desk = composeNewsDesk(rankedAnswers().answers, 1, SENATE);
+    expect(desk?.topic).toBe("politics");
+    expect(desk?.tags).toEqual(expect.arrayContaining(["politics", "climate"]));
+    expect(desk?.clip_source).toBe("snippet_lead");
+    expect(desk?.clip).toBe("Senators ask DPWH for a unique-site list under the 2026 GAA process.");
   });
 });
 
@@ -264,8 +309,34 @@ describe("curator scan + TypeSafe", () => {
     expect((body.typesafe as { configured: boolean; judged: number }).configured).toBe(true);
     expect((body.typesafe as { judged: number }).judged).toBe(3);
     expect(String(body.notice)).toMatch(/TypeSafe/);
+    const clips = body.clips as { url: string; topic: string }[];
+    expect(clips.some((c) => c.topic === "politics")).toBe(true);
+    expect(clips.some((c) => c.url.includes("celebrity"))).toBe(false);
     const health = await jsonOf(await app.request("/healthz"));
     expect(health.typesafe).toBe(true);
+
+    const newsPage = await app.request("/news");
+    expect(newsPage.status).toBe(200);
+    const html = await newsPage.text();
+    expect(html).toContain("What's in the news");
+    expect(html).toContain("noindex");
+    expect(html).toContain("Comelec");
+    expect(html).toContain("politics");
+    expect(html).toContain("clip");
+
+    const feed = await jsonOf(await app.request("/v1/news?topic=politics&notable=1"));
+    const stories = feed.stories as { url: string; topic: string }[];
+    expect(stories.every((s) => s.topic === "politics")).toBe(true);
+    expect(stories.some((s) => s.url.includes("celebrity"))).toBe(false);
+
+    const classified = await app.request("/v1/curator/news/classify", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
+      body: "{}",
+    });
+    expect(classified.status).toBe(200);
+    const classifiedBody = await jsonOf(classified);
+    expect(classifiedBody.classified).toBe(0);
     await sql.close();
   });
 

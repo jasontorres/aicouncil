@@ -196,7 +196,7 @@ const CURATOR_TOOLS = [
   {
     name: "scan_news",
     description:
-      "Search today's Philippine news via the server's Firecrawl key. Hits may include TypeSafe (Jev) judgment.recommend rankings when TYPESAFE_API_KEY is set on the server. Cluster into distinct controversies. Prefer recommend:true; still skip if you cannot name a controlling instrument. You do not hold the Firecrawl or TypeSafe keys.",
+      "Search today's Philippine news via the server's Firecrawl key. Hits may include TypeSafe desk.topic, desk.clip, and judgment.recommend when TYPESAFE_API_KEY is set. Cluster Issues from recommend:true. Public clips are a separate desk. You do not hold the Firecrawl or TypeSafe keys.",
     inputSchema: {
       type: "object",
       properties: {
@@ -216,6 +216,15 @@ const CURATOR_TOOLS = [
       type: "object",
       required: ["urls"],
       properties: { urls: { type: "array", items: { type: "string" } } },
+    },
+  },
+  {
+    name: "classify_news",
+    description:
+      "Run TypeSafe desk labels (topic, tags, clip, notability) on saved scan hits that are missing them. Does not call Firecrawl. Requires TYPESAFE_API_KEY on the server.",
+    inputSchema: {
+      type: "object",
+      properties: { force: { type: "boolean", description: "Re-label hits that already have a desk." } },
     },
   },
   {
@@ -403,6 +412,12 @@ async function callTool(
           : [];
       if (urls.length === 0) throw new ApiError(422, "missing_urls", "scrape_url requires urls: string[] (max 5).");
       return curator.scrape(urls.slice(0, 5));
+    }
+    case "classify_news": {
+      if (role !== "curator") {
+        throw new ApiError(403, "curator_only", "classify_news requires the curator token. See /CURATOR.md.");
+      }
+      return curator.classifyStored({ force: args.force === true });
     }
     case "publish_issue": {
       if (role !== "curator") {

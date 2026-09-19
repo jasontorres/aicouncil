@@ -36,19 +36,48 @@ export function createD1(db: D1Binding): SqlClient {
 const APPLIED_SCHEMA = "0001_init.sql";
 
 export async function migrateD1(db: D1Binding): Promise<void> {
+  let needsInit = true;
   try {
     const applied = await db
       .prepare("SELECT 1 AS ok FROM schema_migrations WHERE filename = ?")
       .bind(APPLIED_SCHEMA)
       .all();
-    if ((applied.results ?? []).length > 0) return;
+    needsInit = (applied.results ?? []).length === 0;
   } catch {
-    // schema_migrations does not exist yet
+    needsInit = true;
   }
 
-  // D1 exec() treats newlines as statement boundaries, so apply one
-  // flattened statement at a time via prepare().
-  for (const statement of splitSqlStatements(SQLITE_SCHEMA)) {
+  if (needsInit) {
+    // D1 exec() treats newlines as statement boundaries, so apply one
+    // flattened statement at a time via prepare().
+    for (const statement of splitSqlStatements(SQLITE_SCHEMA)) {
+      await db.prepare(statement.replace(/\s+/g, " ")).run();
+    }
+  }
+
+  await ensureTable(
+    db,
+    "curator_scrapes",
+    `CREATE TABLE IF NOT EXISTS curator_scrapes (
+      id TEXT PRIMARY KEY,
+      retrieved_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      url TEXT NOT NULL,
+      title TEXT NOT NULL,
+      excerpt TEXT NOT NULL,
+      via TEXT NOT NULL,
+      source_id TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_curator_scrapes_retrieved ON curator_scrapes (retrieved_at DESC);`,
+  );
+}
+
+async function ensureTable(db: D1Binding, name: string, createSql: string): Promise<void> {
+  const rows = await db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .bind(name)
+    .all();
+  if ((rows.results ?? []).length > 0) return;
+  for (const statement of splitSqlStatements(createSql)) {
     await db.prepare(statement.replace(/\s+/g, " ")).run();
   }
 }

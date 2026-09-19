@@ -353,25 +353,166 @@ footer.app {
   justify-content: space-between;
 }
 .roster-item { padding: 16px 0; border-bottom: 1px dashed var(--dash); }
+.wire-item .issue-title { font-size: 1rem; }
+.wire-snippet { margin: 0.25rem 0 0; font-size: 0.92rem; color: var(--ink-2); max-width: 46rem; }
+.wire-clip { margin: 0.35rem 0 0; font-size: 0.98rem; color: var(--ink); max-width: 46rem; }
+.wire-meta { margin-top: 0.2rem; font-size: 0.82rem; color: var(--muted); }
+.wire-excerpt { margin: 0.35rem 0 0; font-size: 0.9rem; color: var(--ink-2); max-width: 46rem; }
+.wire-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 0.4rem; }
+.wire-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid var(--rule);
+  padding: 2px 6px;
+  color: var(--muted);
+}
+.wire-tag.is-clip { border-color: var(--accent); color: var(--accent); }
+.wire-tag.is-council { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.wire-desk {
+  display: grid;
+  grid-template-columns: 17.25rem minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+  margin-top: 8px;
+}
+.wire-cal {
+  position: sticky;
+  top: 16px;
+  border: 1px solid var(--rule);
+  padding: 12px 12px 14px;
+  background: var(--paper);
+}
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cal-nav a, .cal-nav-btn { color: var(--accent); text-decoration: none; padding: 2px 6px; }
+.cal-nav a:hover, a.cal-nav-btn:hover { color: var(--ink); }
+.cal-nav-btn.is-off { color: var(--dash); cursor: default; }
+.cal-label { color: var(--ink); font-weight: 600; }
+.cal-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.cal-table th {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 4px 0 6px;
+}
+.cal-table td {
+  width: 14.28%;
+  height: 2.7rem;
+  padding: 1px;
+  vertical-align: middle;
+  text-align: center;
+}
+.cal-pad { height: 2.7rem; }
+.cal-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 2.6rem;
+  padding: 2px 1px;
+  text-decoration: none;
+  color: var(--ink);
+  border-radius: 2px;
+}
+a.cal-cell:hover { background: var(--chrome); }
+.cal-cell.is-selected { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.cal-cell.is-empty { color: var(--muted); }
+.cal-num { font-size: 12px; line-height: 1.1; }
+.cal-count {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  font-weight: 600;
+}
+.wire-pane { min-width: 0; }
+.wire-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.wire-tabs { display: flex; flex-wrap: wrap; gap: 12px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+.wire-tabs a { color: var(--muted); text-decoration: none; }
+.wire-tabs a.is-on { color: var(--accent); font-weight: 700; }
+.wire-filter { display: flex; gap: 8px; flex: 1; min-width: 12rem; }
+.wire-filter input[type="search"] {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--rule);
+  padding: 8px 10px;
+  font: inherit;
+  background: var(--paper);
+  color: var(--ink);
+}
+.wire-filter button {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.wire-filter button:hover { border-color: var(--accent); color: var(--accent); }
+.wire-list {
+  height: min(68vh, 44rem);
+  overflow: auto;
+  border: 1px solid var(--rule);
+  padding: 4px 16px 12px;
+  background: var(--paper);
+}
+.wire-list .issue-row { grid-template-columns: 1fr; }
 @media (max-width: 800px) {
   header.app, main, footer.app { padding-left: 20px; padding-right: 20px; }
   .issue-row { grid-template-columns: 1fr; gap: 6px; }
   .meta-grid { grid-template-columns: 1fr; }
   .meta-grid > .meta-row { border-right: none; padding-right: 0; }
   main { padding-top: 24px; }
+  .wire-desk { grid-template-columns: 1fr; }
+  .wire-cal { position: static; }
+  .wire-list { height: min(62vh, 36rem); }
 }
 `;
 
 export function layout(opts: {
   title: string;
   body: Html;
+  robots?: "index" | "noindex";
 }): Html {
+  const robots =
+    opts.robots === "noindex"
+      ? "noindex, nofollow, noarchive"
+      : "noarchive";
   return html`<!doctype html>
     <html lang="en">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="robots" content="noarchive" />
+        <meta name="robots" content="${robots}" />
         <title>${opts.title} · THE AI COUNCIL OF THE PHILIPPINES</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

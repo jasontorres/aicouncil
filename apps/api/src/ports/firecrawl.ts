@@ -45,6 +45,7 @@ export type ScrapedPage = {
   retrieved_at: string;
   content_hash: string;
   citation?: string;
+  via?: "firecrawl" | "tavily" | "juris";
 };
 
 export type FirecrawlPort = {
@@ -241,6 +242,7 @@ function pageFromScrape(requested: string, json: Record<string, unknown>): Scrap
     retrieved_at,
     content_hash: contentHash(excerpt),
     citation: title,
+    via: "firecrawl",
   };
 }
 
@@ -250,11 +252,22 @@ function clipExcerpt(text: string): string {
   return `${trimmed.slice(0, 7997)}...`;
 }
 
-function hostnameOf(url: string): string | undefined {
+export function hostnameOf(url: string): string | undefined {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {
     return undefined;
+  }
+}
+
+/** Only http(s) links belong on the news wire. */
+export function httpUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
   }
 }
 

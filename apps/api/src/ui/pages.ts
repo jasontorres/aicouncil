@@ -14,6 +14,19 @@ import { predictionsService, recordsService } from "../services/records.js";
 import type { PositionRow, ResponseRow } from "../services/deliberation.js";
 import { param } from "../lib/params.js";
 import { registerAgentService } from "../services/agents.js";
+import { curatorService } from "../services/curator.js";
+import { formatAgendaHeading, manilaDate } from "../lib/manila.js";
+import { hostnameOf, httpUrl } from "../ports/firecrawl.js";
+import {
+  calendarMonth,
+  newsHref,
+  parseNewsKind,
+  parseNewsTopic,
+  parseNotable,
+  pickMonth,
+  pickSelectedDay,
+  topicTabs,
+} from "./news-cal.js";
 
 function mdLite(src: string) {
   const blocks = src.split(/\n{2,}/);
@@ -51,6 +64,25 @@ function commentCount(n: number | undefined): string {
   const v = n ?? 0;
   if (v === 1) return "1 comment";
   return `${v} comments`;
+}
+
+function clipLine(text: string, n: number): string {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (trimmed.length <= n) return trimmed;
+  return `${trimmed.slice(0, n - 1)}…`;
+}
+
+function manilaStamp(iso: string): string {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return parsed.toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" });
+}
+
+function viaLabel(via: string): string {
+  if (via === "juris") return "Juris markdown";
+  if (via === "tavily") return "Tavily";
+  if (via === "firecrawl") return "Firecrawl";
+  return via || "scrape";
 }
 
 function nestedReplies(
@@ -330,6 +362,142 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
                   </article>`,
                   )}
               </div>`}
+        `,
+      }),
+    );
+  });
+
+  r.get("/news", async (c) => {
+    const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
+    const kind = parseNewsKind(c.req.query("kind"));
+    const topic = parseNewsTopic(c.req.query("topic"));
+    const notableOnly = parseNotable(c.req.query("notable"));
+    const q = (c.req.query("q") ?? "").trim();
+    const qLower = q.toLowerCase();
+    const hrefOpts = { q, kind, topic, notable: notableOnly };
+    const matches = (text: string) => !qLower || text.toLowerCase().includes(qLower);
+    const storyVisible = (story: (typeof wire.stories)[number]) => {
+      if (topic !== "all" && story.desk?.topic !== topic && !story.desk?.tags.some((tag) => tag === topic)) {
+        return false;
+      }
+      if (notableOnly && !story.desk?.notable) return false;
+      return matches(`${story.title} ${story.snippet} ${story.domain} ${story.desk?.clip ?? ""}`);
+    };
+    const visibleStories = wire.stories.filter(storyVisible);
+    const dayCounts = new Map<string, { date: string; stories: number; scrapes: number }>();
+    const bump = (date: string, field: "stories" | "scrapes") => {
+      const row = dayCounts.get(date) ?? { date, stories: 0, scrapes: 0 };
+      row[field] += 1;
+      dayCounts.set(date, row);
+    };
+    for (const story of visibleStories) bump(manilaDate(story.seen_at), "stories");
+    if (kind !== "headlines") {
+      for (const page of wire.scrapes) bump(manilaDate(page.retrieved_at), "scrapes");
+    }
+    const countsList = [...dayCounts.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    const selected = pickSelectedDay(c.req.query("day"), countsList.length ? countsList : wire.day_counts, wire.today);
+    const month = pickMonth(c.req.query("month"), selected, countsList.length ? countsList : wire.day_counts);
+    const counts = new Map((countsList.length ? countsList : wire.day_counts).map((row) => [row.date, row]));
+    const showHeadlines = kind !== "scrapes";
+    const showScrapes = kind !== "headlines";
+    const headlines = showHeadlines
+      ? visibleStories.filter((story) => manilaDate(story.seen_at) === selected)
+      : [];
+    const scrapes = showScrapes
+      ? wire.scrapes.filter(
+          (page) =>
+            manilaDate(page.retrieved_at) === selected && matches(`${page.title} ${page.excerpt} ${page.via}`),
+        )
+      : [];
+    const empty = headlines.length === 0 && scrapes.length === 0;
+    const { label } = formatAgendaHeading(selected, wire.today);
+
+    return c.html(
+      layout({
+        title: "What's in the news",
+        robots: "noindex",
+        body: html`
+          <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / news</p>
+          <div class="record-head">
+            <div class="kicker"><span class="tag-on">Unlisted</span> <span>Asia/Manila ${wire.today}</span></div>
+            <h1>What's in the news</h1>
+            <p class="desc">
+              Saved headlines, classified for a public desk and clip line. Not Issues. Not a vote.
+            </p>
+          </div>
+          <div class="wire-desk">
+            ${calendarMonth({ month, selected, counts, kind, q, topic, notable: notableOnly })}
+            <div class="wire-pane">
+              <div class="wire-toolbar">
+                <nav class="wire-tabs" aria-label="Kind">
+                  <a class="${kind === "all" ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, kind: "all" })}">All</a>
+                  <a class="${kind === "headlines" ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, kind: "headlines" })}">Headlines</a>
+                  <a class="${kind === "scrapes" ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, kind: "scrapes" })}">Scraped</a>
+                  <a class="${notableOnly ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, notable: !notableOnly })}">${notableOnly ? "Clips on" : "Clips"}</a>
+                </nav>
+                <form class="wire-filter" method="get" action="/news">
+                  <input type="hidden" name="day" value="${selected}" />
+                  <input type="hidden" name="month" value="${month}" />
+                  ${kind !== "all" ? html`<input type="hidden" name="kind" value="${kind}" />` : ""}
+                  ${topic !== "all" ? html`<input type="hidden" name="topic" value="${topic}" />` : ""}
+                  ${notableOnly ? html`<input type="hidden" name="notable" value="1" />` : ""}
+                  <input type="search" name="q" value="${q}" placeholder="Filter this day" aria-label="Filter headlines" />
+                  <button type="submit">Filter</button>
+                </form>
+              </div>
+              <nav class="wire-tabs" aria-label="Desk">
+                ${topicTabs().map(
+                  (tab) =>
+                    html`<a class="${topic === tab.id ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, topic: tab.id })}">${tab.label}</a>`,
+                )}
+              </nav>
+              <p class="section-note">${label} ${selected} · ${headlines.length} headlines · ${scrapes.length} scraped</p>
+              <div class="wire-list">
+                ${empty
+                  ? html`<p class="section-note">${q || topic !== "all" || notableOnly ? "No matches for that filter." : "No saved items on this day."}</p>`
+                  : html`
+                      ${headlines.map((story) => {
+                        const href = httpUrl(story.url);
+                        const clip = story.desk?.clip && story.desk.clip !== story.title ? story.desk.clip : "";
+                        return html`<article class="issue-row wire-item">
+                          <div>
+                            ${href
+                              ? html`<a class="issue-title" href="${href}" rel="noopener noreferrer">${story.title}</a>`
+                              : html`<span class="issue-title">${story.title}</span>`}
+                            ${clip ? html`<p class="wire-clip">${clipLine(clip, 220)}</p>` : ""}
+                            ${story.snippet ? html`<p class="wire-snippet">${clipLine(story.snippet, 280)}</p>` : ""}
+                            <div class="wire-tags">
+                              ${story.desk?.topic ? html`<span class="wire-tag">${story.desk.topic}</span>` : ""}
+                              ${(story.desk?.tags ?? [])
+                                .filter((tag) => tag !== story.desk?.topic)
+                                .map((tag) => html`<span class="wire-tag">${tag}</span>`)}
+                              ${story.desk?.notable ? html`<span class="wire-tag is-clip">clip</span>` : ""}
+                              ${story.judgment?.recommend ? html`<span class="wire-tag is-council">council</span>` : ""}
+                            </div>
+                            <div class="wire-meta">
+                              ${story.domain || "source"}
+                              ${story.source ? html` · ${story.source}` : ""}
+                              ${story.date ? html` · ${story.date}` : ""}
+                            </div>
+                          </div>
+                        </article>`;
+                      })}
+                      ${scrapes.map((page) => {
+                        const href = httpUrl(page.url);
+                        return html`<article class="issue-row wire-item">
+                          <div>
+                            ${href
+                              ? html`<a class="issue-title" href="${href}" rel="noopener noreferrer">${page.title}</a>`
+                              : html`<span class="issue-title">${page.title}</span>`}
+                            <p class="wire-excerpt">${clipLine(page.excerpt, 400)}</p>
+                            <div class="wire-meta">${viaLabel(page.via)} · ${hostnameOf(page.url) ?? ""} · ${manilaStamp(page.retrieved_at)}</div>
+                          </div>
+                        </article>`;
+                      })}
+                    `}
+              </div>
+            </div>
+          </div>
         `,
       }),
     );

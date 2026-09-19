@@ -3,6 +3,26 @@ export function manilaToday(now = new Date()): string {
   return now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
 }
 
+/** Manila calendar day for an ISO timestamp. Invalid input falls back to today. */
+export function manilaDate(value: Date | string, fallback = manilaToday()): string {
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return fallback;
+  return manilaToday(parsed);
+}
+
+export function isYearMonth(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}$/.test(value);
+}
+
+/** Shift YYYY-MM by whole months. */
+export function shiftYearMonth(ym: string, delta: number): string {
+  if (!isYearMonth(ym)) return ym;
+  const year = Number(ym.slice(0, 4));
+  const month = Number(ym.slice(5, 7));
+  const shifted = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 export function isAgendaDate(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
@@ -10,6 +30,32 @@ export function isAgendaDate(value: unknown): value is string {
 export function compareYmd(a: string, b: string): number {
   if (a === b) return 0;
   return a < b ? -1 : 1;
+}
+
+/** Parse YYYY-MM-DD as a UTC calendar day (no timezone shift). */
+export function parseYmdUtc(ymd: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!match) return null;
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+/**
+ * Homepage / tracker heading for a Manila agenda day.
+ * Today is labeled; other days use the weekday. `aside` is the ISO date.
+ */
+export function formatAgendaHeading(
+  ymd: string | null | undefined,
+  today: string,
+): { label: string; aside: string } {
+  if (!ymd) return { label: "Open", aside: "" };
+  if (ymd === today) return { label: "Today", aside: ymd };
+  const parsed = parseYmdUtc(ymd);
+  if (!parsed) return { label: ymd, aside: ymd };
+  const label = parsed.toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" });
+  return { label, aside: ymd };
 }
 
 /** Normalize a DATE / Date / ISO string to YYYY-MM-DD. */
