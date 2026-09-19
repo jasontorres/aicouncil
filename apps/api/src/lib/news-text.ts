@@ -112,7 +112,6 @@ export function presentNewsText(title: string, excerpt: string, summary?: string
   const resolvedSummary =
     (summary && !looksLikeChrome(summary) && !/^by:?\s/i.test(summary.trim()) ? summary.trim() : "") ||
     (cleaned.lede && !/^by:?\s/i.test(cleaned.lede) ? cleaned.lede : "");
-  const resolvedExcerpt = cleaned.body || cleaned.lede || "";
   let resolvedExcerpt = cleaned.body || cleaned.lede || "";
   if (resolvedTitle && resolvedExcerpt.startsWith(resolvedTitle)) {
     resolvedExcerpt = resolvedExcerpt.slice(resolvedTitle.length).replace(/^\s+/, "").trim();
