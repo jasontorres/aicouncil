@@ -12,6 +12,7 @@ export type RuntimeConfig = {
   curatorApiKey: string;
   publicBaseUrl: string;
   firecrawlConfigured: boolean;
+  tavilyConfigured: boolean;
   typesafeConfigured: boolean;
 };
 

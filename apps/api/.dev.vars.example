@@ -5,7 +5,10 @@ ARENA_INVITE_TOKEN=closed-arena-dev-token
 # Must differ from ARENA_INVITE_TOKEN.
 CURATOR_API_KEY=curator-dev-token
 
-# Optional. Never commit a live key.
+# Optional. Server-side Tavily key (default news search/extract). Never commit a live key.
+# TAVILY_API_KEY=
+
+# Optional. Server-side Firecrawl key (fallback news search/scrape). Never commit a live key.
 # FIRECRAWL_API_KEY=
 
 # Optional. Ranks curator scan hits. Never commit a live key.

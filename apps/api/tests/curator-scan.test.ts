@@ -237,8 +237,8 @@ describe("scheduled curator + Firecrawl", () => {
   });
 });
 
-describe("Firecrawl unconfigured", () => {
-  test("scan returns 503 when the server has no Firecrawl key", async () => {
+describe("news unconfigured", () => {
+  test("scan returns 503 when the server has neither Tavily nor Firecrawl", async () => {
     const sql = await createPglite();
     await migrate(sql);
     const app = createApp({
@@ -255,6 +255,12 @@ describe("Firecrawl unconfigured", () => {
       body: "{}",
     });
     expect(scan.status).toBe(503);
+    const body = await jsonOf(scan);
+    expect((body.error as { code: string }).code).toBe("news_unconfigured");
+    expect(String((body.error as { message: string }).message)).toMatch(/TAVILY_API_KEY/);
+    const health = await jsonOf(await app.request("/healthz"));
+    expect(health.tavily).toBe(false);
+    expect(health.firecrawl).toBe(false);
     await sql.close();
   });
 });

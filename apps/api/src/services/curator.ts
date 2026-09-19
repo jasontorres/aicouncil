@@ -84,7 +84,7 @@ function assertHourly(bucket: number[], limit: number, label: string, code: stri
     throw llmError(
       429,
       code,
-      `Curator ${label} budget is ${limit}/hour. Wait before calling Firecrawl again.`,
+      `Curator ${label} budget is ${limit}/hour. Wait before scanning news again.`,
       { retry_after_seconds: 60, limit },
     );
   }

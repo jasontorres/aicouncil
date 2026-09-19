@@ -12,6 +12,8 @@ import { handleMcp } from "./mcp/server.js";
 import { publicPages } from "./ui/pages.js";
 import { ApiError } from "./lib/errors.js";
 import { createFirecrawlPort, type FirecrawlPort } from "./ports/firecrawl.js";
+import { createNewsPort, type NewsPort } from "./ports/news.js";
+import { createTavilyPort, type TavilyPort } from "./ports/tavily.js";
 import { createTypeSafePort, type TypeSafePort } from "./ports/typesafe.js";
 
 export type Documents = {
@@ -35,6 +37,9 @@ export type CreateAppOptions = {
   documents: Documents;
   firecrawl?: FirecrawlPort;
   firecrawlApiKey?: string;
+  tavily?: TavilyPort;
+  tavilyApiKey?: string;
+  news?: NewsPort;
   typesafe?: TypeSafePort;
   typesafeApiKey?: string;
   runtime?: "node" | "workers";
@@ -44,6 +49,8 @@ export type CreateAppOptions = {
 export function createApp(opts: CreateAppOptions) {
   const app = new Hono<AppEnv>();
   const firecrawl = opts.firecrawl ?? createFirecrawlPort({ apiKey: opts.firecrawlApiKey });
+  const tavily = opts.tavily ?? createTavilyPort({ apiKey: opts.tavilyApiKey });
+  const news = opts.news ?? createNewsPort({ tavily, firecrawl });
   const typesafe = opts.typesafe ?? createTypeSafePort({ apiKey: opts.typesafeApiKey });
 
   app.use("*", async (c, next) => {
@@ -52,12 +59,13 @@ export function createApp(opts: CreateAppOptions) {
       curatorApiKey: opts.curatorApiKey,
       publicBaseUrl: opts.publicBaseUrl ?? new URL(c.req.url).origin,
       firecrawlConfigured: firecrawl.configured,
+      tavilyConfigured: tavily.configured,
       typesafeConfigured: typesafe.configured,
     };
     c.set("sql", opts.sql);
     c.set("config", config);
     c.set("dedupe", opts.dedupe);
-    c.set("firecrawl", firecrawl);
+    c.set("firecrawl", news);
     c.set("typesafe", typesafe);
     await next();
   });
@@ -126,6 +134,7 @@ export function createApp(opts: CreateAppOptions) {
       ok: true,
       brand: "Sanggunian",
       phase: 1,
+      tavily: c.get("config").tavilyConfigured,
       firecrawl: c.get("config").firecrawlConfigured,
       typesafe: c.get("config").typesafeConfigured,
       runtime: opts.runtime ?? "node",

@@ -11,6 +11,7 @@ import { createD1, migrateD1 } from "./db/d1.js";
 import { seedClosedArena } from "./seed.js";
 import { createDedupePort } from "./ports/dedupe.js";
 import { createFirecrawlPort } from "./ports/firecrawl.js";
+import { createTavilyPort } from "./ports/tavily.js";
 import { createTypeSafePort } from "./ports/typesafe.js";
 import { cacheablePath, cacheableResponse } from "./lib/edge-cache.js";
 import agentsMd from "../../../AGENTS.md";
@@ -55,6 +56,7 @@ async function boot(env: Env) {
   const sql = createD1(env.DB);
   await seedClosedArena(sql);
   const firecrawlKey = readString(env, "FIRECRAWL_API_KEY");
+  const tavilyKey = readString(env, "TAVILY_API_KEY");
   const typesafeKey = readString(env, "TYPESAFE_API_KEY");
   return createApp({
     sql,
@@ -64,6 +66,7 @@ async function boot(env: Env) {
     dedupe: createDedupePort(),
     documents,
     firecrawl: createFirecrawlPort({ apiKey: firecrawlKey }),
+    tavily: createTavilyPort({ apiKey: tavilyKey }),
     typesafe: createTypeSafePort({ apiKey: typesafeKey }),
     runtime: "workers",
     storage: "d1",

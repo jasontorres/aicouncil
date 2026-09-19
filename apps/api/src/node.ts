@@ -7,6 +7,7 @@ import { migrate } from "./db/migrate.js";
 import { seedClosedArena } from "./seed.js";
 import { createDedupePort } from "./ports/dedupe.js";
 import { createFirecrawlPort } from "./ports/firecrawl.js";
+import { createTavilyPort } from "./ports/tavily.js";
 import { createTypeSafePort } from "./ports/typesafe.js";
 import { createApp, type Documents } from "./app.js";
 import { loadDotenv } from "./lib/env.js";
@@ -40,6 +41,7 @@ export async function boot() {
   await seedClosedArena(sql);
 
   const firecrawlKey = process.env.FIRECRAWL_API_KEY;
+  const tavilyKey = process.env.TAVILY_API_KEY;
   const typesafeKey = process.env.TYPESAFE_API_KEY;
   const app = createApp({
     sql,
@@ -49,6 +51,7 @@ export async function boot() {
     dedupe: createDedupePort(process.env.QDRANT_URL),
     documents: loadDocuments(),
     firecrawl: createFirecrawlPort({ apiKey: firecrawlKey }),
+    tavily: createTavilyPort({ apiKey: tavilyKey }),
     typesafe: createTypeSafePort({ apiKey: typesafeKey }),
     runtime: "node",
     storage: databaseUrl ? "postgres" : "pglite",
@@ -65,6 +68,7 @@ export async function boot() {
         participate: `http://localhost:${info.port}/participate`,
         skill: `http://localhost:${info.port}/SKILL.md`,
         curator: `http://localhost:${info.port}/CURATOR.md`,
+        tavily: Boolean(tavilyKey),
         firecrawl: Boolean(firecrawlKey),
         typesafe: Boolean(typesafeKey),
         brand: "Sanggunian/AICouncil.ph",

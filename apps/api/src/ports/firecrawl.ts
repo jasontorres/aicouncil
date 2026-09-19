@@ -228,28 +228,45 @@ function pageFromScrape(requested: string, json: Record<string, unknown>): Scrap
   const meta = data.metadata && typeof data.metadata === "object" ? (data.metadata as Record<string, unknown>) : {};
   const url = stringish(meta.sourceURL) || stringish(meta.url) || stringish(data.url) || requested;
   const title = stringish(meta.title) || stringish(data.title) || url;
-  const markdown = stringish(data.markdown);
-  const excerpt = clipExcerpt(markdown || stringish(data.summary) || stringish(meta.description) || title);
+  const markdown = stringish(data.markdown) || stringish(data.summary) || stringish(meta.description);
+  return pageFromMarkdown(url, title, markdown, "firecrawl");
+}
+
+export function clipExcerpt(text: string): string {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (trimmed.length <= 8000) return trimmed || "No excerpt.";
+  return `${trimmed.slice(0, 7997)}...`;
+}
+
+export function titleFromMarkdown(markdown: string, fallback: string): string {
+  for (const line of markdown.split("\n")) {
+    const title = line.replace(/^#+\s*/, "").replace(/\*+/g, "").trim();
+    if (title.length > 8) return title.slice(0, 200);
+  }
+  return fallback;
+}
+
+export function pageFromMarkdown(
+  requested: string,
+  title: string,
+  markdown: string,
+  via: NonNullable<ScrapedPage["via"]>,
+): ScrapedPage {
+  const excerpt = clipExcerpt(markdown || title);
   const retrieved_at = new Date().toISOString();
   return {
-    url,
+    url: requested,
     title,
     excerpt,
     markdown: markdown ? markdown.slice(0, 20_000) : undefined,
-    publisher: hostnameOf(url),
-    source_id: sourceIdFromUrl(url),
+    publisher: hostnameOf(requested),
+    source_id: sourceIdFromUrl(requested),
     kind: "data",
     retrieved_at,
     content_hash: contentHash(excerpt),
     citation: title,
-    via: "firecrawl",
+    via,
   };
-}
-
-function clipExcerpt(text: string): string {
-  const trimmed = text.replace(/\s+/g, " ").trim();
-  if (trimmed.length <= 8000) return trimmed || "No excerpt.";
-  return `${trimmed.slice(0, 7997)}...`;
 }
 
 export function hostnameOf(url: string): string | undefined {
