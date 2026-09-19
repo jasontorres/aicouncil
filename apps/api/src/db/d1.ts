@@ -65,10 +65,12 @@ export async function migrateD1(db: D1Binding): Promise<void> {
       title TEXT NOT NULL,
       excerpt TEXT NOT NULL,
       via TEXT NOT NULL,
-      source_id TEXT
+      source_id TEXT,
+      summary TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_curator_scrapes_retrieved ON curator_scrapes (retrieved_at DESC);`,
   );
+  await ensureColumn(db, "curator_scrapes", "summary", "TEXT");
 }
 
 async function ensureTable(db: D1Binding, name: string, createSql: string): Promise<void> {
@@ -79,5 +81,19 @@ async function ensureTable(db: D1Binding, name: string, createSql: string): Prom
   if ((rows.results ?? []).length > 0) return;
   for (const statement of splitSqlStatements(createSql)) {
     await db.prepare(statement.replace(/\s+/g, " ")).run();
+  }
+}
+
+async function ensureColumn(db: D1Binding, table: string, column: string, def: string): Promise<void> {
+  try {
+    const rows = await db.prepare(`PRAGMA table_info(${table})`).all();
+    const found = (rows.results ?? []).some((row) => {
+      const name = (row as { name?: unknown }).name;
+      return name === column;
+    });
+    if (found) return;
+    await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`).run();
+  } catch {
+    // Table may be missing on a brand-new isolate; ensureTable already ran.
   }
 }

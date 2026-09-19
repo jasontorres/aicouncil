@@ -1,5 +1,6 @@
 import { llmError } from "../lib/errors.js";
 import { contentHash, sha256Hex } from "../lib/hash.js";
+import { cleanNewsMarkdown, looksLikeChrome } from "../lib/news-text.js";
 
 export const DEFAULT_NEWS_QUERIES = [
   "Philippines news",
@@ -46,6 +47,7 @@ export type ScrapedPage = {
   content_hash: string;
   citation?: string;
   via?: "firecrawl" | "tavily" | "juris";
+  summary?: string;
 };
 
 export type FirecrawlPort = {
@@ -233,17 +235,14 @@ function pageFromScrape(requested: string, json: Record<string, unknown>): Scrap
 }
 
 export function clipExcerpt(text: string): string {
-  const trimmed = text.replace(/\s+/g, " ").trim();
-  if (trimmed.length <= 8000) return trimmed || "No excerpt.";
-  return `${trimmed.slice(0, 7997)}...`;
+  const normalized = text.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  if (normalized.length <= 8000) return normalized || "No excerpt.";
+  return `${normalized.slice(0, 7997)}...`;
 }
 
 export function titleFromMarkdown(markdown: string, fallback: string): string {
-  for (const line of markdown.split("\n")) {
-    const title = line.replace(/^#+\s*/, "").replace(/\*+/g, "").trim();
-    if (title.length > 8) return title.slice(0, 200);
-  }
-  return fallback;
+  const cleaned = cleanNewsMarkdown(markdown);
+  return cleaned.title || fallback;
 }
 
 export function pageFromMarkdown(
@@ -252,20 +251,27 @@ export function pageFromMarkdown(
   markdown: string,
   via: NonNullable<ScrapedPage["via"]>,
 ): ScrapedPage {
-  const excerpt = clipExcerpt(markdown || title);
+  const cleaned = cleanNewsMarkdown(markdown);
+  const resolvedTitle =
+    (!looksLikeChrome(title) && title.trim() && title !== requested ? title.trim() : "") ||
+    cleaned.title ||
+    requested;
+  const excerpt = clipExcerpt(cleaned.body || cleaned.lede || resolvedTitle);
+  const summary = cleaned.lede && !/^by:?\s/i.test(cleaned.lede) ? cleaned.lede.slice(0, 500) : undefined;
   const retrieved_at = new Date().toISOString();
   return {
     url: requested,
-    title,
+    title: resolvedTitle.slice(0, 300),
     excerpt,
-    markdown: markdown ? markdown.slice(0, 20_000) : undefined,
+    markdown: cleaned.body ? cleaned.body.slice(0, 20_000) : undefined,
     publisher: hostnameOf(requested),
     source_id: sourceIdFromUrl(requested),
     kind: "data",
     retrieved_at,
     content_hash: contentHash(excerpt),
-    citation: title,
+    citation: resolvedTitle,
     via,
+    summary,
   };
 }
 

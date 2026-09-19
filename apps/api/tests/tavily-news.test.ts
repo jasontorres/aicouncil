@@ -27,7 +27,7 @@ function jsonOf(res: Response) {
   return res.json() as Promise<Record<string, unknown>>;
 }
 
-function mockTavily(opts: { failSearch?: boolean; failExtract?: boolean; capture?: Record<string, unknown>[] } = {}): typeof fetch {
+function mockTavily(opts: { failSearch?: boolean; failExtract?: boolean; chrome?: boolean; capture?: Record<string, unknown>[] } = {}): typeof fetch {
   return (async (_input, init) => {
     const url = String(_input);
     const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
@@ -50,13 +50,15 @@ function mockTavily(opts: { failSearch?: boolean; failExtract?: boolean; capture
     }
     if (url.includes("/extract")) {
       if (opts.failExtract) return new Response("nope", { status: 500 });
+      const raw = opts.chrome
+        ? `[![Image 2: tiktok](blob:http://localhost/a7738210d3944ec6b273043b6b31e8b6)](${TAVILY_URL})\nFOLLOW US:\nSubscribe to our daily newsletter\n# Under 24-hour hospital stay covered – PhilHealth\n\nPhilHealth will now pay for inpatient admissions that last less than 24 hours.`
+        : "# Senate flood hearing\n\nSenators asked DPWH to publish a unique-site list of flood-control projects.";
       return new Response(
         JSON.stringify({
           results: [
             {
               url: TAVILY_URL,
-              raw_content:
-                "# Senate flood hearing\n\nSenators asked DPWH to publish a unique-site list of flood-control projects.",
+              raw_content: raw,
             },
           ],
         }),
@@ -243,6 +245,35 @@ describe("Tavily-default news", () => {
     const pages = scraped.pages as { via?: string; excerpt: string }[];
     expect(pages[0]?.via).toBe("firecrawl");
     expect(pages[0]?.excerpt).toContain("November");
+    await sql.close();
+  });
+
+  test("scrape strips page-chrome markdown and shows a headline on /news", async () => {
+    const { sql, app } = await makeApp({
+      tavily: createTavilyPort({ apiKey: "tvly-test-not-real", fetchImpl: mockTavily({ chrome: true }) }),
+    });
+    const scrape = await app.request("/v1/curator/scrape", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
+      body: JSON.stringify({ urls: [TAVILY_URL] }),
+    });
+    expect(scrape.status).toBe(200);
+    const scraped = await jsonOf(scrape);
+    const pages = scraped.pages as { title: string; excerpt: string; summary?: string }[];
+    expect(pages[0]?.title).toBe("Under 24-hour hospital stay covered – PhilHealth");
+    expect(pages[0]?.excerpt).not.toMatch(/blob:http/);
+    expect(pages[0]?.excerpt).toMatch(/less than 24 hours/);
+    expect(pages[0]?.summary).toMatch(/less than 24 hours/);
+
+    const newsPage = await app.request("/news?kind=scrapes");
+    const html = await newsPage.text();
+    expect(html).toContain("Under 24-hour hospital stay covered");
+    expect(html).not.toContain("blob:http");
+    expect(html).not.toContain("Image 2: tiktok");
+
+    const feed = await jsonOf(await app.request("/v1/news"));
+    const scrapes = feed.scrapes as { title: string; summary: string | null }[];
+    expect(scrapes.some((row) => row.title.includes("PhilHealth"))).toBe(true);
     await sql.close();
   });
 

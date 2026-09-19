@@ -23,6 +23,8 @@ import {
   type NewsJudgment,
   type NewsTag,
 } from "../ports/news-judge.js";
+import { presentNewsText } from "../lib/news-text.js";
+import { summarizeScrapedPages } from "../ports/news-summarize.js";
 import { createTypeSafePort, type TypeSafePort } from "../ports/typesafe.js";
 import { issuesService } from "./issues.js";
 
@@ -42,6 +44,7 @@ type ScrapeRow = {
   excerpt: string;
   via: string;
   source_id: string | null;
+  summary?: string | null;
 };
 
 export type NewsWireStory = {
@@ -66,6 +69,7 @@ export type NewsWire = {
     url: string;
     title: string;
     excerpt: string;
+    summary: string;
     via: string;
     retrieved_at: string;
   }[];
@@ -133,7 +137,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
         const preferred = ranked.hits.filter((h) => h.judgment?.recommend || h.desk?.notable);
         const pool = preferred.length ? preferred : ranked.hits;
         const urls = pool.slice(0, 4).map((h) => h.url);
-        enriched = await scrapeMany(firecrawl, urls);
+        enriched = await scrapeMany(firecrawl, urls, judge);
         await persistScrapes(sql, enriched);
       }
 
@@ -179,7 +183,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
 
     async scrape(urls: string[]) {
       assertHourly(scrapeHits, CAPS.curatorScrapesPerHour, "scrape", "curator_scrape_rate_limited");
-      const pages = await scrapeMany(firecrawl, urls);
+      const pages = await scrapeMany(firecrawl, urls, judge);
       await persistScrapes(sql, pages);
       return {
         pages,
@@ -199,14 +203,24 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
       let scrapeRows: ScrapeRow[] = [];
       try {
         scrapeRows = await sql.query<ScrapeRow>(
-          `SELECT id, retrieved_at, url, title, excerpt, via, source_id
+          `SELECT id, retrieved_at, url, title, excerpt, via, source_id, summary
            FROM curator_scrapes
            ORDER BY retrieved_at DESC
            LIMIT $1`,
           [WIRE_SCRAPE_LIMIT],
         );
       } catch {
-        scrapeRows = [];
+        try {
+          scrapeRows = await sql.query<ScrapeRow>(
+            `SELECT id, retrieved_at, url, title, excerpt, via, source_id
+             FROM curator_scrapes
+             ORDER BY retrieved_at DESC
+             LIMIT $1`,
+            [WIRE_SCRAPE_LIMIT],
+          );
+        } catch {
+          scrapeRows = [];
+        }
       }
 
       const seen = new Set<string>();
@@ -220,7 +234,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
           stories.push({
             url: hit.url,
             title: hit.title,
-            snippet: hit.snippet,
+            snippet: presentNewsText(hit.title, hit.snippet).excerpt || hit.snippet,
             domain: hostnameOf(hit.url) ?? "",
             source: hit.source,
             query: hit.query,
@@ -232,13 +246,17 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
         }
       }
 
-      const scrapes = scrapeRows.map((row) => ({
-        url: row.url,
-        title: row.title,
-        excerpt: row.excerpt,
-        via: row.via,
-        retrieved_at: String(row.retrieved_at),
-      }));
+      const scrapes = scrapeRows.map((row) => {
+        const shown = presentNewsText(row.title, row.excerpt, row.summary);
+        return {
+          url: row.url,
+          title: shown.title,
+          excerpt: shown.excerpt,
+          summary: shown.summary,
+          via: row.via,
+          retrieved_at: String(row.retrieved_at),
+        };
+      });
 
       const buckets = new Map<string, { date: string; stories: number; scrapes: number }>();
       const bump = (date: string, field: "stories" | "scrapes") => {
@@ -289,8 +307,18 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
           unique.push(hit);
         }
       }
+      const washed = await washStoredScrapes(sql, judge, input.force === true);
       if (unique.length === 0) {
-        return { classified: 0, scans: 0, model: null, notice: "Every saved headline already has a desk label." };
+        return {
+          classified: 0,
+          scans: 0,
+          summarized: washed.summarized,
+          model: washed.model,
+          notice:
+            washed.summarized > 0
+              ? "Saved scrapes now carry a cleaned excerpt and a verbatim lede. Headlines already had desk labels."
+              : "Every saved headline already has a desk label.",
+        };
       }
       const ranked = await judgeNewsHitBatches(judge, unique);
       if (ranked.error && ranked.judged === 0) {
@@ -320,10 +348,11 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
       return {
         classified: ranked.judged,
         scans,
-        model: ranked.model,
+        summarized: washed.summarized,
+        model: ranked.model ?? washed.model,
         error: ranked.error ?? null,
         notice:
-          "Saved scan hits now carry desk.topic, desk.tags, desk.clip, and council judgment. GET /news or GET /v1/news. This is not a publish decision.",
+          "Saved scan hits now carry desk.topic, desk.tags, desk.clip, and council judgment. Scrapes carry a cleaned excerpt and a verbatim lede. GET /news or GET /v1/news. This is not a publish decision.",
       };
     },
 
@@ -378,12 +407,89 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
   };
 }
 
-async function scrapeMany(firecrawl: FirecrawlPort, urls: string[]): Promise<ScrapedPage[]> {
+async function scrapeMany(
+  firecrawl: FirecrawlPort,
+  urls: string[],
+  judge?: TypeSafePort,
+): Promise<ScrapedPage[]> {
   const pages: ScrapedPage[] = [];
   for (const url of urls) {
     pages.push(await firecrawl.scrape(url));
   }
-  return pages;
+  if (!judge?.configured || pages.length === 0) return pages;
+  return summarizeScrapedPages(judge, pages);
+}
+
+async function washStoredScrapes(
+  sql: SqlClient,
+  judge: TypeSafePort,
+  force: boolean,
+): Promise<{ summarized: number; model: string | null }> {
+  let rows: ScrapeRow[] = [];
+  try {
+    rows = await sql.query<ScrapeRow>(
+      `SELECT id, retrieved_at, url, title, excerpt, via, source_id, summary
+       FROM curator_scrapes
+       ORDER BY retrieved_at DESC
+       LIMIT $1`,
+      [WIRE_SCRAPE_LIMIT],
+    );
+  } catch {
+    try {
+      rows = await sql.query<ScrapeRow>(
+        `SELECT id, retrieved_at, url, title, excerpt, via, source_id
+         FROM curator_scrapes
+         ORDER BY retrieved_at DESC
+         LIMIT $1`,
+        [WIRE_SCRAPE_LIMIT],
+      );
+    } catch {
+      return { summarized: 0, model: null };
+    }
+  }
+  if (rows.length === 0) return { summarized: 0, model: null };
+
+  const pages: ScrapedPage[] = rows.map((row) => {
+    const shown = presentNewsText(row.title, row.excerpt, row.summary);
+    return {
+      url: row.url,
+      title: shown.title,
+      excerpt: shown.excerpt,
+      markdown: shown.excerpt,
+      source_id: row.source_id ?? "",
+      kind: "data",
+      retrieved_at: String(row.retrieved_at),
+      content_hash: "",
+      via: row.via === "tavily" || row.via === "juris" || row.via === "firecrawl" ? row.via : "tavily",
+      summary: force ? undefined : shown.summary || undefined,
+    };
+  });
+  const summarized = await summarizeScrapedPages(judge, pages);
+  let n = 0;
+  for (const [i, page] of summarized.entries()) {
+    const row = rows[i];
+    if (!row) continue;
+    const shown = presentNewsText(page.title, page.excerpt, page.summary);
+    try {
+      await sql.exec(
+        `UPDATE curator_scrapes SET title = $1, excerpt = $2, summary = $3 WHERE id = $4`,
+        [shown.title.slice(0, 300), shown.excerpt.slice(0, 8000), shown.summary.slice(0, 500) || null, row.id],
+      );
+      n += 1;
+    } catch {
+      try {
+        await sql.exec(`UPDATE curator_scrapes SET title = $1, excerpt = $2 WHERE id = $3`, [
+          shown.title.slice(0, 300),
+          shown.excerpt.slice(0, 8000),
+          row.id,
+        ]);
+        n += 1;
+      } catch {
+        // Column or table missing on an old local DB.
+      }
+    }
+  }
+  return { summarized: n, model: judge.configured ? "jev-latest" : null };
 }
 
 async function persistScan(
@@ -404,21 +510,32 @@ async function persistScrapes(sql: SqlClient, pages: ScrapedPage[]): Promise<voi
   for (const page of pages) {
     const url = httpUrl(page.url);
     if (!url) continue;
+    const shown = presentNewsText(page.title, page.excerpt, page.summary);
+    const args = [
+      newId(),
+      url,
+      shown.title.slice(0, 300),
+      shown.excerpt.slice(0, 8000),
+      page.via ?? "firecrawl",
+      page.source_id ?? null,
+      shown.summary.slice(0, 500) || null,
+    ];
     try {
       await sql.exec(
-        `INSERT INTO curator_scrapes (id, url, title, excerpt, via, source_id)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          newId(),
-          url,
-          page.title.slice(0, 300),
-          page.excerpt.slice(0, 4000),
-          page.via ?? "firecrawl",
-          page.source_id ?? null,
-        ],
+        `INSERT INTO curator_scrapes (id, url, title, excerpt, via, source_id, summary)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        args,
       );
     } catch {
-      // Table may not exist on an old local DB; scans still persist.
+      try {
+        await sql.exec(
+          `INSERT INTO curator_scrapes (id, url, title, excerpt, via, source_id)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          args.slice(0, 6),
+        );
+      } catch {
+        // Table may not exist on an old local DB; scans still persist.
+      }
     }
   }
 }

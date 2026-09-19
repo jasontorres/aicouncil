@@ -101,7 +101,15 @@ export function v1Router() {
         council: story.judgment?.recommend ?? false,
       })),
       notice:
-        "Classified scan hits for public clips. Not Issues. Not a vote. Filter with ?topic=tech&notable=1.",
+        "Classified scan hits for public clips, plus cleaned scrapes with a verbatim lede. Not Issues. Not a vote. Filter with ?topic=tech&notable=1.",
+      scrapes: wire.scrapes.map((page) => ({
+        url: page.url,
+        title: page.title,
+        summary: page.summary || null,
+        excerpt: page.excerpt,
+        via: page.via,
+        retrieved_at: page.retrieved_at,
+      })),
     });
   });
 

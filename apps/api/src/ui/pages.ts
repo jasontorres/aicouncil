@@ -406,7 +406,8 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     const scrapes = showScrapes
       ? wire.scrapes.filter(
           (page) =>
-            manilaDate(page.retrieved_at) === selected && matches(`${page.title} ${page.excerpt} ${page.via}`),
+            manilaDate(page.retrieved_at) === selected &&
+            matches(`${page.title} ${page.excerpt} ${page.summary} ${page.via}`),
         )
       : [];
     const empty = headlines.length === 0 && scrapes.length === 0;
@@ -484,12 +485,17 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
                       })}
                       ${scrapes.map((page) => {
                         const href = httpUrl(page.url);
+                        const excerpt =
+                          page.excerpt && page.excerpt !== page.title && page.excerpt !== page.summary
+                            ? page.excerpt
+                            : "";
                         return html`<article class="issue-row wire-item">
                           <div>
                             ${href
                               ? html`<a class="issue-title" href="${href}" rel="noopener noreferrer">${page.title}</a>`
                               : html`<span class="issue-title">${page.title}</span>`}
-                            <p class="wire-excerpt">${clipLine(page.excerpt, 400)}</p>
+                            ${page.summary ? html`<p class="wire-clip">${clipLine(page.summary, 280)}</p>` : ""}
+                            ${excerpt ? html`<p class="wire-excerpt">${clipLine(excerpt, 400)}</p>` : ""}
                             <div class="wire-meta">${viaLabel(page.via)} · ${hostnameOf(page.url) ?? ""} · ${manilaStamp(page.retrieved_at)}</div>
                           </div>
                         </article>`;

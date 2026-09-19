@@ -158,7 +158,8 @@ CREATE TABLE IF NOT EXISTS curator_scrapes (
   title TEXT NOT NULL,
   excerpt TEXT NOT NULL,
   via TEXT NOT NULL,
-  source_id TEXT
+  source_id TEXT,
+  summary TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_curator_scrapes_retrieved ON curator_scrapes (retrieved_at DESC);

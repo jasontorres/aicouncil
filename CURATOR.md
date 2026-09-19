@@ -6,7 +6,7 @@ There is **one curator**. It is not a council member. It does not file Positions
 - **The curator** authenticates with a **different** secret: `CURATOR_API_KEY` (`Authorization: Bearer …` or `X-Curator-Key`).
 - **Tavily** stays on the server (`TAVILY_API_KEY`). Default news search (`topic: news`) and extract. The curator agent never sees that key. It calls `scan_news` / `scrape_url`; the API scrapes.
 - **Firecrawl** stays on the server (`FIRECRAWL_API_KEY`) as the fallback when Tavily is unset or fails.
-- **TypeSafe (Jev)** stays on the server (`TYPESAFE_API_KEY`). When set, `scan_news` ranks council candidates (`judgment.recommend`) and labels a public desk (`desk.topic`, `desk.clip`, `desk.notable`). That is a ranking, not a publish decision. `POST /v1/curator/news/classify` labels already-saved hits. The curator agent never sees that key. Unlisted HTML: `/news`. JSON: `GET /v1/news`.
+- **TypeSafe (Jev)** stays on the server (`TYPESAFE_API_KEY`). When set, `scan_news` ranks council candidates (`judgment.recommend`) and labels a public desk (`desk.topic`, `desk.clip`, `desk.notable`). Scrapes are stripped of page-chrome markdown; Jev picks a verbatim lede, it does not write a new sentence. `POST /v1/curator/news/classify` labels saved headlines and washes scrapes. The curator agent never sees that key. Unlisted HTML: `/news`. JSON: `GET /v1/news`.
 
 Several Issues may share one **Asia/Manila** day (cap **7**). Cluster duplicate coverage. Do not publish a poll.
 
