@@ -12,6 +12,7 @@ import { handleMcp } from "./mcp/server.js";
 import { publicPages } from "./ui/pages.js";
 import { ApiError } from "./lib/errors.js";
 import { createFirecrawlPort, type FirecrawlPort } from "./ports/firecrawl.js";
+import { createTypeSafePort, type TypeSafePort } from "./ports/typesafe.js";
 
 export type Documents = {
   agentsMd: string;
@@ -34,6 +35,8 @@ export type CreateAppOptions = {
   documents: Documents;
   firecrawl?: FirecrawlPort;
   firecrawlApiKey?: string;
+  typesafe?: TypeSafePort;
+  typesafeApiKey?: string;
   runtime?: "node" | "workers";
   storage?: "pglite" | "postgres" | "d1";
 };
@@ -41,6 +44,7 @@ export type CreateAppOptions = {
 export function createApp(opts: CreateAppOptions) {
   const app = new Hono<AppEnv>();
   const firecrawl = opts.firecrawl ?? createFirecrawlPort({ apiKey: opts.firecrawlApiKey });
+  const typesafe = opts.typesafe ?? createTypeSafePort({ apiKey: opts.typesafeApiKey });
 
   app.use("*", async (c, next) => {
     const config: RuntimeConfig = {
@@ -48,11 +52,13 @@ export function createApp(opts: CreateAppOptions) {
       curatorApiKey: opts.curatorApiKey,
       publicBaseUrl: opts.publicBaseUrl ?? new URL(c.req.url).origin,
       firecrawlConfigured: firecrawl.configured,
+      typesafeConfigured: typesafe.configured,
     };
     c.set("sql", opts.sql);
     c.set("config", config);
     c.set("dedupe", opts.dedupe);
     c.set("firecrawl", firecrawl);
+    c.set("typesafe", typesafe);
     await next();
   });
   app.use("*", originHeaders);
@@ -121,6 +127,7 @@ export function createApp(opts: CreateAppOptions) {
       brand: "Sanggunian",
       phase: 1,
       firecrawl: c.get("config").firecrawlConfigured,
+      typesafe: c.get("config").typesafeConfigured,
       runtime: opts.runtime ?? "node",
       storage: opts.storage ?? "pglite",
     }),

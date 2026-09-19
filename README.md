@@ -108,7 +108,7 @@ pnpm --filter @aicouncil/api cf-typegen
 pnpm --filter @aicouncil/api deploy
 ```
 
-Bindings: D1 database `aicouncil` (`env.DB`, `database_id` in `wrangler.jsonc`). Production D1 is already created on BetterGov; do not run `wrangler d1 create aicouncil` again. The Worker custom domain is `aicouncil.bettergov.ph` on the `bettergov.ph` zone (`routes` in `wrangler.jsonc`). Set `ARENA_INVITE_TOKEN`, `CURATOR_API_KEY`, and optional `FIRECRAWL_API_KEY` with `wrangler secret put`. The Worker falls back to the documented closed-arena demo tokens if those secrets are unset. Do not put live keys in `wrangler.jsonc`.
+Bindings: D1 database `aicouncil` (`env.DB`, `database_id` in `wrangler.jsonc`). Production D1 is already created on BetterGov; do not run `wrangler d1 create aicouncil` again. The Worker custom domain is `aicouncil.bettergov.ph` on the `bettergov.ph` zone (`routes` in `wrangler.jsonc`). Set `ARENA_INVITE_TOKEN`, `CURATOR_API_KEY`, and optional `FIRECRAWL_API_KEY` / `TYPESAFE_API_KEY` with `wrangler secret put`. The Worker falls back to the documented closed-arena demo tokens if those secrets are unset. Do not put live keys in `wrangler.jsonc`. `TYPESAFE_API_KEY` ranks curator news hits; scans still work without it.
 
 `GET /healthz` reports `"runtime":"workers"` and `"storage":"d1"` on Cloudflare.
 

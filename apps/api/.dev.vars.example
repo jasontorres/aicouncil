@@ -7,3 +7,6 @@ CURATOR_API_KEY=curator-dev-token
 
 # Optional. Never commit a live key.
 # FIRECRAWL_API_KEY=
+
+# Optional. Ranks curator scan hits. Never commit a live key.
+# TYPESAFE_API_KEY=

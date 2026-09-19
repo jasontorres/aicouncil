@@ -9,6 +9,8 @@ import {
   type NewsHit,
   type ScrapedPage,
 } from "../ports/firecrawl.js";
+import { judgeNewsHits, type JudgedNewsHit } from "../ports/news-judge.js";
+import { createTypeSafePort, type TypeSafePort } from "../ports/typesafe.js";
 import { issuesService } from "./issues.js";
 
 type ScanRow = {
@@ -47,7 +49,8 @@ function parseJson<T>(value: unknown, fallback: T): T {
   return (value as T) ?? fallback;
 }
 
-export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort) {
+export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesafe?: TypeSafePort) {
+  const judge = typesafe ?? createTypeSafePort({});
   return {
     async scan(input: {
       queries?: string[];
@@ -72,26 +75,43 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort) {
         throw err;
       }
 
+      const ranked = await judgeNewsHits(judge, hits);
       let enriched: ScrapedPage[] = [];
       if (input.enrich) {
-        const urls = hits.slice(0, 4).map((h) => h.url);
+        const preferred = ranked.hits.filter((h) => h.judgment?.recommend);
+        const pool = preferred.length ? preferred : ranked.hits;
+        const urls = pool.slice(0, 4).map((h) => h.url);
         enriched = await scrapeMany(firecrawl, urls);
       }
 
-      const id = await persistScan(sql, queries, hits, null);
+      const id = await persistScan(sql, queries, ranked.hits, null);
       const tracker = await issuesService(sql).tracker();
+      const candidates = ranked.hits.filter((h) => h.judgment?.recommend);
       return {
         scan_id: id,
         timezone: "Asia/Manila",
         today,
         queries,
-        hits,
+        hits: ranked.hits,
         enriched,
+        candidates: candidates.map((h) => ({
+          url: h.url,
+          title: h.title,
+          disposition: h.judgment?.disposition,
+        })),
+        typesafe: {
+          configured: ranked.configured,
+          model: ranked.model,
+          judged: ranked.judged,
+          error: ranked.error ?? null,
+        },
         today_issue_count: tracker.today_issues.length,
         today_remaining: Math.max(0, CAPS.issuesPerManilaDay - tracker.today_issues.length),
         cap: CAPS.issuesPerManilaDay,
         notice:
-          "You are the curator, not a council member. Cluster duplicate coverage into distinct controversies. Publish at most the remaining slots. Each Issue needs a decision-question and a real Context Pack (statutes min 1). News goes in pack.data. Do not invent peso figures or crimes by named people. Do not file Positions.",
+          ranked.configured && !ranked.error
+            ? "You are the curator, not a council member. Hits are ordered by TypeSafe (Jev). Prefer judgment.recommend; that is a ranking, not permission to publish. Cluster duplicate coverage. Skip if you cannot name a controlling instrument. Each Issue needs a decision-question and a real Context Pack (statutes min 1). Do not invent peso figures or crimes by named people. Do not file Positions."
+            : "You are the curator, not a council member. Cluster duplicate coverage into distinct controversies. Publish at most the remaining slots. Each Issue needs a decision-question and a real Context Pack (statutes min 1). News goes in pack.data. Do not invent peso figures or crimes by named people. Do not file Positions.",
       };
     },
 
@@ -167,7 +187,7 @@ async function scrapeMany(firecrawl: FirecrawlPort, urls: string[]): Promise<Scr
 async function persistScan(
   sql: SqlClient,
   queries: string[],
-  results: NewsHit[],
+  results: JudgedNewsHit[] | NewsHit[],
   error: string | null,
 ): Promise<string> {
   const id = newId();

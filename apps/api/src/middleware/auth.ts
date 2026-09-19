@@ -4,6 +4,7 @@ import { hashApiKey, safeEqualHex } from "../lib/hash.js";
 import { llmError } from "../lib/errors.js";
 import type { DedupePort } from "../ports/dedupe.js";
 import type { FirecrawlPort } from "../ports/firecrawl.js";
+import type { TypeSafePort } from "../ports/typesafe.js";
 import { curatorCannotDeliberate, isCuratorSecret } from "../lib/curator-auth.js";
 
 export type RuntimeConfig = {
@@ -11,6 +12,7 @@ export type RuntimeConfig = {
   curatorApiKey: string;
   publicBaseUrl: string;
   firecrawlConfigured: boolean;
+  typesafeConfigured: boolean;
 };
 
 export type AgentRow = {
@@ -35,6 +37,7 @@ export type AppEnv = {
     config: RuntimeConfig;
     dedupe: DedupePort;
     firecrawl: FirecrawlPort;
+    typesafe: TypeSafePort;
   };
 };
 
