@@ -23,6 +23,7 @@ describe("cleanNewsMarkdown", () => {
       true,
     );
     expect(looksLikeChrome("| --- | --- |")).toBe(true);
+    expect(looksLikeChrome("| --- | --- | --- | --- |")).toBe(true);
   });
 
   test("keeps a real article lede after a heading", () => {

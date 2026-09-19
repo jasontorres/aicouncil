@@ -250,7 +250,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
         const shown = presentNewsText(row.title, row.excerpt, row.summary);
         return {
           url: row.url,
-          title: shown.title,
+          title: shown.title || hostnameOf(row.url) || row.url,
           excerpt: shown.excerpt,
           summary: shown.summary,
           via: row.via,

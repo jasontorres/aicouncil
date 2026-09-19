@@ -59,6 +59,7 @@ export function looksLikeChrome(text: string): boolean {
   if (/\]\(/.test(trimmed) || /\[[^\]]+$/.test(trimmed)) return true;
   if (/^!\[/.test(trimmed) || /^\]\(/.test(trimmed)) return true;
   if (/^\|[\s:|-]*\|/.test(trimmed)) return true;
+  if (trimmed.includes("|") && /^[\s:|-]+$/.test(trimmed)) return true;
   return false;
 }
 
@@ -111,7 +112,7 @@ export function presentNewsText(title: string, excerpt: string, summary?: string
   const source = looksLikeChrome(excerpt) || looksLikeChrome(title) ? `${title}\n\n${excerpt}` : excerpt;
   const cleaned = cleanNewsMarkdown(source || excerpt || title);
   const resolvedTitle =
-    (!looksLikeChrome(title) && title.trim().length > 8 ? title.trim() : "") || cleaned.title || title.trim();
+    (!looksLikeChrome(title) && title.trim().length > 8 ? title.trim() : "") || cleaned.title;
   const resolvedSummary =
     (summary && !looksLikeChrome(summary) && !/^by:?\s/i.test(summary.trim()) ? summary.trim() : "") ||
     (cleaned.lede && !/^by:?\s/i.test(cleaned.lede) ? cleaned.lede : "");
