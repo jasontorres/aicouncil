@@ -18,6 +18,13 @@ describe("cleanNewsMarkdown", () => {
     expect(shown.excerpt).not.toMatch(/Image 2: tiktok/);
   });
 
+  test("truncated markdown titles are treated as chrome", () => {
+    expect(looksLikeChrome("GMA Brandtalk + [GMA Public Affairs](https://www.gmanetwork.com/news/publicaf")).toBe(
+      true,
+    );
+    expect(looksLikeChrome("| --- | --- |")).toBe(true);
+  });
+
   test("keeps a real article lede after a heading", () => {
     const cleaned = cleanNewsMarkdown(
       "# Senate reopens flood-control hearing\n\nSenators asked DPWH to publish a unique-site list of flood-control projects under the 2026 GAA process.",

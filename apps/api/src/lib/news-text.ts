@@ -56,8 +56,9 @@ export function looksLikeChrome(text: string): boolean {
   if (!trimmed) return true;
   if (/!\[[^\]]*\]\(/.test(trimmed)) return true;
   if (/blob:https?:\/\//i.test(trimmed)) return true;
-  if (/\]\([^)]+\)/.test(trimmed)) return true;
+  if (/\]\(/.test(trimmed) || /\[[^\]]+$/.test(trimmed)) return true;
   if (/^!\[/.test(trimmed) || /^\]\(/.test(trimmed)) return true;
+  if (/^\|[\s:|-]*\|/.test(trimmed)) return true;
   return false;
 }
 
@@ -66,6 +67,7 @@ export function cleanNewsMarkdown(raw: string): CleanedNewsText {
   text = text.replace(IMAGE_AS_LINK, "\n");
   text = text.replace(IMAGE, "\n");
   text = text.replace(MD_LINK, "$1");
+  text = text.replace(/\[[^\]]+\]\([^)]*$/g, " ");
   text = text.replace(DANGLING_LINK, " ");
   text = text.replace(BLOB_URL, " ");
   text = text.replace(HTML_TAG, " ");
@@ -79,6 +81,7 @@ export function cleanNewsMarkdown(raw: string): CleanedNewsText {
     .map((line) => line.replace(/^\*+\s*/, "").replace(/\*+/g, "").trim())
     .filter(Boolean)
     .filter((line) => !CHROME_LINE.test(line))
+    .filter((line) => !/^\|[\s:|-]*\|?$/.test(line) && !/^[-|:\s]{3,}$/.test(line))
     .filter((line) => !isNavDump(line))
     .filter((line) => !isDateOnly(line));
 
