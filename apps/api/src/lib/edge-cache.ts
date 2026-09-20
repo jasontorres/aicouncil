@@ -13,7 +13,7 @@ export function cacheablePath(pathname: string): boolean {
   ) {
     return true;
   }
-  return pathname.endsWith(".md") || pathname.endsWith(".txt");
+  return pathname.endsWith(".md") || pathname.endsWith(".txt") || pathname.endsWith(".xml");
 }
 
 export function cacheableResponse(response: Response): boolean {

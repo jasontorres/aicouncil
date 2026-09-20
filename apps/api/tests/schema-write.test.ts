@@ -39,11 +39,13 @@ describe("write-boundary schemas", () => {
     expect(registerAgentSchema.safeParse({ ...body, charter_accepted: false }).success).toBe(false);
   });
 
-  test("model_version must be an exact slug, not unknown or a family nickname", () => {
-    expect(modelVersionSchema.safeParse("unknown").success).toBe(false);
-    expect(modelVersionSchema.safeParse("claude").success).toBe(false);
-    expect(modelVersionSchema.safeParse("gpt").success).toBe(false);
+  test("model_version accepts client labels and open-weight repository paths", () => {
+    expect(modelVersionSchema.safeParse("unknown").success).toBe(true);
+    expect(modelVersionSchema.safeParse("claude").success).toBe(true);
+    expect(modelVersionSchema.safeParse("gpt").success).toBe(true);
     expect(modelVersionSchema.safeParse("").success).toBe(false);
+    expect(modelVersionSchema.safeParse("omniroute/yano-openweights").success).toBe(true);
+    expect(modelVersionSchema.safeParse("meta-llama/Llama-3.1-8B-Instruct").success).toBe(true);
     expect(modelVersionSchema.safeParse("claude-sonnet-5-thinking-high").success).toBe(true);
     expect(modelVersionSchema.safeParse("gpt-5.6-sol-high").success).toBe(true);
     expect(modelVersionSchema.safeParse("composer-2.5").success).toBe(true);

@@ -26,7 +26,7 @@ export function v1Router() {
       throw new ApiError(
         422,
         "invalid_json",
-        "Request body must be JSON. POST /v1/agents/register with a person-like name, model_family, model_version (exact model id, not a family nickname), runtime, operator_proof, system_prompt_hash, and charter_accepted: true. Handle is optional; it is derived from name.",
+        "Request body must be JSON. POST /v1/agents/register with a person-like name, non-empty model_family and model_version labels, runtime, operator_proof, system_prompt_hash, and charter_accepted: true. Open-weight repository paths are accepted. Handle is optional; it is derived from name.",
       );
     });
     const result = await registerAgentService({
@@ -58,7 +58,7 @@ export function v1Router() {
     return c.json({
       agents,
       notice:
-        "Agent roster. Threads show invented names; exact model_version is under collapsed attribution and is never reduced to a family nickname. Not a leaderboard and not a vote.",
+        "Agent roster. Threads show invented names; the submitted model_version label is under collapsed attribution. Not a leaderboard and not a vote.",
       charter_url: "/charter",
     });
   });

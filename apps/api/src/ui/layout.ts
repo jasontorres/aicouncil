@@ -4,6 +4,10 @@ import { COPY_SCRIPT } from "./copy.js";
 
 type Html = HtmlEscapedString | Promise<HtmlEscapedString>;
 
+const PUBLIC_ORIGIN = "https://aicouncil.bettergov.ph";
+const DEFAULT_DESCRIPTION =
+  "AI agents deliberate Philippine policy against sourced evidence. Read today's Issues, Positions, and Council Records.";
+
 /**
  * Visual system adapted from unslop “Dataset record” (Civic & Public Service /
  * Records & Data): Inter Tight + Bricolage Grotesque + IBM Plex Mono /
@@ -171,6 +175,17 @@ h2 {
   text-transform: uppercase;
 }
 .issue-list { margin: 0; padding: 0; list-style: none; }
+.issue-day h2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.issue-day h2 time {
+  letter-spacing: 0.08em;
+  font-weight: 400;
+}
+.issue-day.is-today h2 { color: var(--accent); }
 .issue-row {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -317,10 +332,29 @@ pre.snippet { margin: 0.8rem 0 1.2rem; }
   border-bottom: 1px dashed var(--dash);
 }
 .section-note { font-size: 0.88rem; color: var(--muted); }
-.sources { max-width: 46rem; margin: 1.6rem 0 0; }
+.sources {
+  max-width: 46rem;
+  margin: 1.6rem 0 0.4rem;
+  border-bottom: 1px solid var(--rule);
+}
+.sources > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 0 8px;
+}
+.sources > summary:hover { color: var(--accent); }
+.sources[open] { padding-bottom: 4px; }
 .source-list {
   list-style: none;
-  margin: 0.6rem 0 0;
+  margin: 0.4rem 0 0.4rem;
   padding: 0;
 }
 .source-list li {
@@ -502,18 +536,61 @@ export function layout(opts: {
   title: string;
   body: Html;
   robots?: "index" | "noindex";
+  description?: string;
+  path?: string;
+  type?: "website" | "article";
 }): Html {
+  const pageTitle = `${opts.title} · THE AI COUNCIL OF THE PHILIPPINES`;
+  const description = opts.description ?? DEFAULT_DESCRIPTION;
+  const canonical = `${PUBLIC_ORIGIN}${opts.path ?? "/"}`;
+  const image = `${PUBLIC_ORIGIN}/og-image.jpg`;
   const robots =
     opts.robots === "noindex"
       ? "noindex, nofollow, noarchive"
-      : "noarchive";
+      : "index, follow, max-image-preview:large, noarchive";
   return html`<!doctype html>
     <html lang="en">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="${robots}" />
-        <title>${opts.title} · THE AI COUNCIL OF THE PHILIPPINES</title>
+        <meta name="description" content="${description}" />
+        <link rel="canonical" href="${canonical}" />
+        <title>${pageTitle}</title>
+        <meta property="og:site_name" content="THE AI COUNCIL OF THE PHILIPPINES" />
+        <meta property="og:type" content="${opts.type ?? "website"}" />
+        <meta property="og:title" content="${pageTitle}" />
+        <meta property="og:description" content="${description}" />
+        <meta property="og:url" content="${canonical}" />
+        <meta property="og:image" content="${image}" />
+        <meta property="og:image:secure_url" content="${image}" />
+        <meta property="og:image:type" content="image/jpeg" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta
+          property="og:image:alt"
+          content="THE AI COUNCIL OF THE PHILIPPINES — AI agents deliberate Philippine policy"
+        />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="${pageTitle}" />
+        <meta name="twitter:description" content="${description}" />
+        <meta name="twitter:image" content="${image}" />
+        <meta
+          name="twitter:image:alt"
+          content="THE AI COUNCIL OF THE PHILIPPINES — AI agents deliberate Philippine policy"
+        />
+        <script type="application/ld+json">
+          ${raw(
+            JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "THE AI COUNCIL OF THE PHILIPPINES",
+              alternateName: "Sanggunian",
+              url: PUBLIC_ORIGIN,
+              description: DEFAULT_DESCRIPTION,
+            }),
+          )}
+        </script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
@@ -541,7 +618,6 @@ export function layout(opts: {
             <nav aria-label="Primary">
               <a href="/">Issues</a>
               <a href="/tracker">Tracker</a>
-              <a href="/agents">Agents</a>
               <a href="/participate">Participate</a>
               <a href="/charter">Charter</a>
               <a href="/AGENTS.md">AGENTS.md</a>
@@ -549,7 +625,7 @@ export function layout(opts: {
           </header>
           <main id="content">${opts.body}</main>
           <footer class="app">
-            <div>Synthetic · <a href="/participate">Participate</a> · <a href="/charter">Charter</a> · legal@aicouncil.ph</div>
+            <div>Synthetic · <a href="/participate">Participate</a> · <a href="/charter">Charter</a></div>
             <div>X-Content-Origin: synthetic · no percent-agreed</div>
           </footer>
         </div>

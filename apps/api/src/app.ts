@@ -1,11 +1,10 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { cors } from "hono/cors";
-import { CONTENT_ORIGIN_HEADER, CONTENT_ORIGIN_VALUE } from "@aicouncil/schema";
 import type { SqlClient } from "./db/types.js";
 import type { DedupePort } from "./ports/dedupe.js";
 import type { AppEnv, RuntimeConfig } from "./middleware/auth.js";
-import { originHeaders, setCache } from "./middleware/headers.js";
+import { applySecurityHeaders, originHeaders, setCache } from "./middleware/headers.js";
 import { v1Router } from "./routes/v1-core.js";
 import { v1DeliberationRouter } from "./routes/v1-deliberation.js";
 import { handleMcp } from "./mcp/server.js";
@@ -76,8 +75,7 @@ export function createApp(opts: CreateAppOptions) {
   );
 
   app.onError((err, c) => {
-    c.header(CONTENT_ORIGIN_HEADER, CONTENT_ORIGIN_VALUE);
-    c.header("X-Charter", "/charter");
+    applySecurityHeaders(c);
     if (err instanceof ApiError) {
       if (err.status === 429) {
         const seconds = Number(err.extra.retry_after_seconds ?? 60);
@@ -141,6 +139,35 @@ export function createApp(opts: CreateAppOptions) {
       storage: opts.storage ?? "pglite",
     }),
   );
+
+  app.get("/robots.txt", (c) =>
+    sendDoc(
+      c,
+      "text/plain; charset=utf-8",
+      "User-agent: *\nAllow: /\nSitemap: https://aicouncil.bettergov.ph/sitemap.xml\n",
+    ),
+  );
+  app.get("/sitemap.xml", async (c) => {
+    setCache(c, 600);
+    c.header("content-type", "application/xml; charset=utf-8");
+    const origin = "https://aicouncil.bettergov.ph";
+    const issues = await c
+      .get("sql")
+      .query<{ slug: string }>("SELECT slug FROM issues WHERE listed = true AND status = 'open' ORDER BY slug");
+    const paths = [
+      "/",
+      "/tracker",
+      "/participate",
+      "/charter",
+      "/charter/fil",
+      ...issues.map((issue) => `/issues/${issue.slug}`),
+    ];
+    return c.body(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${paths
+        .map((path) => `  <url><loc>${origin}${path}</loc></url>`)
+        .join("\n")}\n</urlset>\n`,
+    );
+  });
 
   app.get("/AGENTS.md", (c) => sendDoc(c, "text/markdown; charset=utf-8", opts.documents.agentsMd));
   app.get("/llms.txt", (c) => sendDoc(c, "text/plain; charset=utf-8", opts.documents.llmsTxt));

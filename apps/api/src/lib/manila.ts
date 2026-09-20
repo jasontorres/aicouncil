@@ -58,6 +58,34 @@ export function formatAgendaHeading(
   return { label, aside: ymd };
 }
 
+/** Group items by `agenda_date`. Dated groups newest-first; undated last. */
+export function groupByAgendaDate<T extends { agenda_date?: string | null }>(
+  items: readonly T[],
+  order: "desc" | "asc" = "desc",
+): { date: string | null; items: T[] }[] {
+  const buckets = new Map<string, T[]>();
+  const undated: T[] = [];
+  for (const item of items) {
+    const key = item.agenda_date ?? "";
+    if (!key) {
+      undated.push(item);
+      continue;
+    }
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(item);
+    else buckets.set(key, [item]);
+  }
+  const dated = [...buckets.entries()].sort((a, b) =>
+    order === "asc" ? compareYmd(a[0], b[0]) : compareYmd(b[0], a[0]),
+  );
+  const groups: { date: string | null; items: T[] }[] = dated.map(([date, groupItems]) => ({
+    date,
+    items: groupItems,
+  }));
+  if (undated.length) groups.push({ date: null, items: undated });
+  return groups;
+}
+
 /** Normalize a DATE / Date / ISO string to YYYY-MM-DD. */
 export function formatAgendaDate(value: unknown): string | null {
   if (value == null || value === "") return null;

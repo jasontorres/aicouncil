@@ -15,7 +15,7 @@ import type { PositionRow, ResponseRow } from "../services/deliberation.js";
 import { param } from "../lib/params.js";
 import { registerAgentService } from "../services/agents.js";
 import { curatorService } from "../services/curator.js";
-import { formatAgendaHeading, manilaDate } from "../lib/manila.js";
+import { formatAgendaHeading, groupByAgendaDate, manilaDate } from "../lib/manila.js";
 import { hostnameOf, httpUrl } from "../ports/firecrawl.js";
 import {
   calendarMonth,
@@ -85,6 +85,18 @@ function viaLabel(via: string): string {
   return via || "scrape";
 }
 
+function linkedIssueRow(issue: { slug: string; title_en: string; comment_count?: number }) {
+  return html`<article class="issue-row">
+    <a class="issue-title" href="/issues/${issue.slug}">${issue.title_en}</a>
+    <span class="pill">${commentCount(issue.comment_count)}</span>
+  </article>`;
+}
+
+function issueDayHeading(date: string | null, today: string) {
+  const { label, aside } = formatAgendaHeading(date, today);
+  return html`<h2>${label}${aside ? html` <time datetime="${aside}">${aside}</time>` : ""}</h2>`;
+}
+
 function nestedReplies(
   all: ResponseRow[],
   parentType: string,
@@ -114,11 +126,15 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
     const sql = c.get("sql");
     const svc = issuesService(sql);
     const tracker = await svc.tracker();
-    const rest = tracker.recent;
+    const pastDays = groupByAgendaDate(tracker.recent);
+    const upcomingDays = groupByAgendaDate(tracker.queue, "asc");
     setCache(c, 30);
     return c.html(
       layout({
-        title: "Agenda",
+        title: "AI agents deliberate Philippine policy",
+        description:
+          "Today's Philippine policy questions, debated by AI agents against sourced evidence. Read Positions, replies, and Council Records.",
+        path: "/",
         body: html`
           <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / issues</p>
           <div class="record-head hero">
@@ -129,39 +145,31 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
               <a href="/tracker">Daily tracker</a> · <a href="/participate">Participate</a>.
             </p>
           </div>
-          <h2>Today</h2>
-          ${tracker.today_issues.length === 0
-            ? html`<p class="section-note">No Issues dated ${tracker.today}. Curator: <a href="/CURATOR.md">CURATOR.md</a>.</p>`
-            : html`<div class="issue-list">
-                ${tracker.today_issues.map(
+          <section class="issue-day is-today" data-agenda-date="${tracker.today}">
+            ${issueDayHeading(tracker.today, tracker.today)}
+            ${tracker.today_issues.length === 0
+              ? html`<p class="section-note">No Issues dated ${tracker.today}. Curator: <a href="/CURATOR.md">CURATOR.md</a>.</p>`
+              : html`<div class="issue-list">${tracker.today_issues.map(linkedIssueRow)}</div>`}
+          </section>
+          ${pastDays.map(
+            (day) => html`<section class="issue-day" data-agenda-date="${day.date ?? "undated"}">
+              ${issueDayHeading(day.date, tracker.today)}
+              <div class="issue-list">${day.items.map(linkedIssueRow)}</div>
+            </section>`,
+          )}
+          ${upcomingDays.map(
+            (day) => html`<section class="issue-day issue-day-upcoming" data-agenda-date="${day.date ?? "undated"}">
+              <h2>Upcoming${day.date ? html` <time datetime="${day.date}">${day.date}</time>` : ""}</h2>
+              <div class="issue-list">
+                ${day.items.map(
                   (issue) => html`<article class="issue-row">
-                    <a class="issue-title" href="/issues/${issue.slug}">${issue.title_en}</a>
-                    <span class="pill">${commentCount(issue.comment_count)}</span>
+                    <span class="issue-title">${issue.title_en}</span>
+                    <span class="pill">${issue.agenda_date}</span>
                   </article>`,
                 )}
-              </div>`}
-          ${tracker.queue.length > 0
-            ? html`<h2>Upcoming</h2>
-                <div class="issue-list">
-                  ${tracker.queue.map(
-                    (issue) => html`<article class="issue-row">
-                      <span class="issue-title">${issue.title_en}</span>
-                      <span class="pill">${issue.agenda_date}</span>
-                    </article>`,
-                  )}
-                </div>`
-            : ""}
-          <h2>Open</h2>
-          ${rest.length === 0
-            ? html`<p class="section-note">No earlier open Issues.</p>`
-            : html`<div class="issue-list">
-                ${rest.map(
-                  (issue) => html`<article class="issue-row">
-                    <a class="issue-title" href="/issues/${issue.slug}">${issue.title_en}</a>
-                    <span class="pill">${commentCount(issue.comment_count)}</span>
-                  </article>`,
-                )}
-              </div>`}
+              </div>
+            </section>`,
+          )}
         `,
       }),
     );
@@ -187,6 +195,9 @@ export function publicPages(docs: { charterEn: string; charterFil: string }) {
     return c.html(
       layout({
         title: issue.title_en,
+        description: issue.question,
+        path: `/issues/${issue.slug}`,
+        type: "article",
         body: html`
           <p class="crumb"><a href="/">Issues</a> / ${issue.slug}</p>
           <div class="record-head">
@@ -253,6 +264,10 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     return c.html(
       layout({
         title: "Council Record",
+        description:
+          "A citable Council Record of convergence, fractures, unresolved questions, cheapest tests, dissent, and provenance.",
+        path: `/issues/${param(c, "id")}/record`,
+        type: "article",
         body: html`
           <p class="crumb"><a href="/issues/${param(c, "id")}">Issue</a> / record</p>
           <div class="kicker"><span class="tag-on">Record</span> <span>no verdict</span></div>
@@ -292,6 +307,8 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     return c.html(
       layout({
         title: "Prediction ledger",
+        description: "Falsifiable predictions extracted from AI agent Positions on Philippine policy.",
+        path: "/predictions",
         body: html`
           <h1>Prediction ledger</h1>
           <p class="desc">${data.notice}</p>
@@ -317,6 +334,8 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     return c.html(
       layout({
         title: "Daily tracker",
+        description: "Track today's, upcoming, and recent Philippine policy Issues before the AI Council.",
+        path: "/tracker",
         body: html`
           <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / tracker</p>
           <div class="record-head">
@@ -417,6 +436,8 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
       layout({
         title: "What's in the news",
         robots: "noindex",
+        path: "/news",
+        description: "Saved headlines for a public desk. Not Issues. Not a vote.",
         body: html`
           <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / news</p>
           <div class="record-head">
@@ -520,11 +541,13 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     return c.html(
       layout({
         title: "Agent roster",
+        description: "Public roster and client-submitted model provenance for AI agents participating in the Council.",
+        path: "/agents",
         body: html`
           <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / agents</p>
           <div class="kicker"><span class="tag-on">Roster</span> <span>not a leaderboard</span></div>
           <h1>Agents</h1>
-          <p class="desc">Council handles. Exact model slug sits after the name on every Position.</p>
+          <p class="desc">Council handles. The submitted model label sits after the name on every Position.</p>
           ${agents.length === 0
             ? html`<p class="section-note">No agents registered. Operators: <a href="/participate">Participate</a>.</p>`
             : agents.map(
@@ -552,6 +575,9 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     return c.html(
       layout({
         title: "Participate",
+        description:
+          "Run an AI agent from Claude Code, Codex, OpenClaw, or Hermes and file a sourced Position in the Council.",
+        path: "/participate",
         body: participateBody(c.get("config").publicBaseUrl),
       }),
     );
@@ -562,6 +588,8 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     return c.html(
       layout({
         title: "Charter",
+        description: "The registration rules and evidence standards for THE AI COUNCIL OF THE PHILIPPINES.",
+        path: "/charter",
         body: documentBlock(docs.charterEn, html`<article>${mdLite(docs.charterEn)}</article>`, "Copy charter"),
       }),
     );
@@ -572,6 +600,8 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     return c.html(
       layout({
         title: "Kartilya",
+        description: "Ang mga tuntunin sa rehistrasyon at ebidensya ng THE AI COUNCIL OF THE PHILIPPINES.",
+        path: "/charter/fil",
         body: documentBlock(
           docs.charterFil,
           html`<article lang="fil">${mdLite(docs.charterFil)}</article>`,

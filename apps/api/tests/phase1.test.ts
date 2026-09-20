@@ -523,16 +523,30 @@ describe("Sanggunian Phase 1", () => {
     expect(sources.every((s) => s.kind !== "constraint" && s.kind !== "open_question")).toBe(true);
   });
 
-  test("model_version rejects unknown, empty, and family nicknames", async () => {
-    for (const model of ["unknown", "claude", "gpt", "gemini", "1", ""]) {
+  test("model labels accept open-weight repository paths without a registry allowlist", async () => {
+    for (const [index, model] of [
+      "unknown",
+      "claude",
+      "1",
+      "omniroute/yano-openweights",
+      "meta-llama/Llama-3.1-8B-Instruct",
+    ].entries()) {
       const res = await register(app, {
-        handle: `badmodel${model || "empty"}`.replace(/[^a-z0-9]/g, "").slice(0, 32) || "badmodelempty",
-        operator: `op_bad_${model || "empty"}`.replace(/[^a-z0-9_]/g, "_"),
+        handle: `openweight${index}`,
+        operator: `op_openweight_${index}`,
+        family: index === 3 ? "open weights/community" : "open-weight",
         model,
-        hash: promptHash(200 + model.length),
+        hash: promptHash(200 + index),
       });
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(201);
     }
+    const empty = await register(app, {
+      handle: "emptymodel",
+      operator: "op_empty_model",
+      model: "",
+      hash: promptHash(209),
+    });
+    expect(empty.status).toBe(422);
   });
 
   test("registration persists and returns the exact model slug", async () => {
@@ -627,14 +641,36 @@ describe("Sanggunian Phase 1", () => {
     expect(homeHtml).toContain("kind of advice you'd want if they actually had the job");
     expect(homeHtml).not.toContain("Humans run a scheduled curator");
     expect(homeHtml).not.toContain("This is not a vote and not public opinion");
+    expect(homeHtml).toContain('<meta name="description"');
+    expect(homeHtml).toContain('<link rel="canonical" href="https://aicouncil.bettergov.ph/"');
+    expect(homeHtml).toContain('<meta property="og:image" content="https://aicouncil.bettergov.ph/og-image.jpg"');
+    expect(homeHtml).toContain('<meta property="og:image:width" content="1200"');
+    expect(homeHtml).toContain('<meta name="twitter:card" content="summary_large_image"');
+    expect(homeHtml).toContain('type="application/ld+json"');
     expect(homeHtml).toContain('href="/participate"');
     expect(homeHtml).toContain('href="/tracker"');
+    expect(homeHtml).not.toContain('href="/agents">Agents');
+    expect(homeHtml).not.toContain("legal@aicouncil.ph");
     expect(homeHtml).toContain("Daily tracker");
+    expect(homeHtml).toContain('class="issue-day is-today"');
+    expect(homeHtml).toContain('data-agenda-date="2026-08-24"');
+    expect(homeHtml).toContain('data-agenda-date="2026-08-23"');
+    expect(homeHtml).toContain('<time datetime="2026-08-24">2026-08-24</time>');
+    expect(homeHtml).toContain('<time datetime="2026-08-23">2026-08-23</time>');
+    expect(homeHtml.indexOf('data-agenda-date="2026-08-24"')).toBeLessThan(
+      homeHtml.indexOf('data-agenda-date="2026-08-23"'),
+    );
+    expect(homeHtml.indexOf("Pax Silica")).toBeLessThan(homeHtml.indexOf(BARANGAY_SEED_ISSUE.title_en));
+    expect(homeHtml).not.toMatch(/<h2>Open<\/h2>/);
     expect(home.headers.get("Cache-Control")).toMatch(/s-maxage=30/);
 
     const participate = await app.request("/participate");
     expect(participate.status).toBe(200);
     const participateHtml = await participate.text();
+    expect(participateHtml).toContain("Claude Code");
+    expect(participateHtml).toContain("Codex");
+    expect(participateHtml).toContain("egress");
+    expect(participateHtml).not.toContain("any agent that can HTTP");
     expect(participateHtml).toContain("One-off");
     expect(participateHtml).toContain("OpenClaw");
     expect(participateHtml).toContain("Hermes");
@@ -740,6 +776,9 @@ describe("Sanggunian Phase 1", () => {
     expect(htmlRes.status).toBe(200);
     const html = await htmlRes.text();
     expect(html).toContain("Deliberation");
+    expect(html).toContain(`<link rel="canonical" href="https://aicouncil.bettergov.ph/issues/${BARANGAY_SEED_ISSUE.slug}"`);
+    expect(html).toContain('<meta property="og:type" content="article"');
+    expect(html).toContain('property="og:description" content="SB 2387 (Escudero)');
     expect(html).toContain("THE AI COUNCIL OF THE PHILIPPINES");
     expect(html).toContain('<span class="meta-k">Comments</span><span class="meta-v">2</span>');
     expect(html).toContain("Deliberation · 2 comments");
@@ -749,6 +788,8 @@ describe("Sanggunian Phase 1", () => {
     expect(html).toContain(slug);
     expect(html).toContain("class=\"model-id\"");
     expect(html).toContain("<summary>grounding</summary>");
+    expect(html).toContain("<details class=\"sources\"");
+    expect(html).not.toMatch(/<details class="sources"[^>]*\sopen\b/);
     expect(html).toContain(">Sources<");
     expect(html).toContain("https://lawphil.net/statutes/repacts/ra2025/ra_12232_2025.html");
     expect(html).toContain("https://www.philstar.com/headlines/2026/08/07/2547578/2-year-bske-postponement-5-year-term-pushed");
@@ -929,6 +970,18 @@ describe("Sanggunian Phase 1", () => {
     const skill = await app.request("/CURATOR.SKILL.md");
     expect(skill.status).toBe(200);
     expect(await skill.text()).toContain("scan_news");
+
+    const robots = await app.request("/robots.txt");
+    expect(robots.status).toBe(200);
+    expect(await robots.text()).toContain("Sitemap: https://aicouncil.bettergov.ph/sitemap.xml");
+    const sitemap = await app.request("/sitemap.xml");
+    expect(sitemap.status).toBe(200);
+    expect(sitemap.headers.get("content-type")).toMatch(/application\/xml/);
+    const sitemapXml = await sitemap.text();
+    expect(sitemapXml).toContain("<loc>https://aicouncil.bettergov.ph/participate</loc>");
+    expect(sitemapXml).toContain(
+      `<loc>https://aicouncil.bettergov.ph/issues/${BARANGAY_SEED_ISSUE.slug}</loc>`,
+    );
   });
 
   test("cost_estimate is required on Positions", async () => {
