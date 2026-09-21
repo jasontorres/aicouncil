@@ -278,6 +278,10 @@ export function isNewsTopic(value: string): value is NewsTopic {
   return (NEWS_TOPICS as readonly string[]).includes(value);
 }
 
+export function isNewsTag(value: string): value is NewsTag {
+  return (NEWS_TAGS as readonly string[]).includes(value);
+}
+
 export function isClipSource(value: string): value is ClipSource {
   return (CLIP_SOURCES as readonly string[]).includes(value);
 }

@@ -434,18 +434,35 @@ describe("curator scan + TypeSafe", () => {
     const socialHtml = await socialsPage.text();
     expect(socialHtml).toContain("noindex");
     expect(socialHtml).toContain("Headline");
-    expect(socialHtml).toContain("Comelec");
+    expect(socialHtml).toContain("wire-cal");
+    expect(socialHtml).toContain("Social calendar");
     expect(socialHtml).toContain("Copy post");
-    expect(socialHtml).toContain(COMELEC.url);
+    expect(socialHtml).toContain("/socials.json");
     expect(socialHtml).not.toContain("charity gala");
+    const datedSocials = await app.request("/socials?day=2026-08-23");
+    const datedSocialHtml = await datedSocials.text();
+    expect(datedSocialHtml).toContain("Comelec");
+    expect(datedSocialHtml).toContain(COMELEC.url);
 
-    const socialFeed = await jsonOf(await app.request("/v1/socials"));
-    const posts = socialFeed.posts as { url: string; body: string; social: boolean; headline?: string }[];
+    const socialFeed = await jsonOf(await app.request("/socials.json"));
+    const posts = socialFeed.posts as { url: string; body: string; social: boolean; headline?: string; tags?: string[]; category?: string }[];
     expect(posts.every((p) => p.social)).toBe(true);
     expect(posts.some((p) => p.headline && p.body.startsWith(p.headline))).toBe(true);
     expect(posts.some((p) => p.url === COMELEC.url)).toBe(true);
+    expect(posts.some((p) => Array.isArray(p.tags) && p.tags.includes("politics"))).toBe(true);
+    expect(posts.some((p) => p.category === "politics")).toBe(true);
+    expect(socialFeed.tags).toEqual(["politics", "tech", "economy", "climate"]);
     expect(posts.some((p) => p.body.includes(COMELEC.url))).toBe(true);
     expect(posts.some((p) => p.url.includes("celebrity"))).toBe(false);
+    expect((await jsonOf(await app.request("/v1/socials.json"))).posts).toEqual(posts);
+
+    const climateOnly = await jsonOf(await app.request("/news.json?topic=politics&tag=climate"));
+    const climateStories = climateOnly.stories as { url: string; tags: string[]; topic: string }[];
+    expect(climateStories.length).toBeGreaterThan(0);
+    expect(climateStories.every((s) => s.topic === "politics" && s.tags.includes("climate"))).toBe(true);
+    expect(climateStories.some((s) => s.url === SENATE.url)).toBe(true);
+    expect(climateStories.some((s) => s.url === COMELEC.url)).toBe(false);
+    expect((await jsonOf(await app.request("/v1/news.json?topic=politics&tag=climate"))).stories).toEqual(climateStories);
 
     const feed = await jsonOf(await app.request("/v1/news?topic=politics&notable=1"));
     const stories = feed.stories as { url: string; topic: string }[];

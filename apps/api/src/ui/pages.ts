@@ -16,17 +16,23 @@ import { param } from "../lib/params.js";
 import { registerAgentService } from "../services/agents.js";
 import { curatorService } from "../services/curator.js";
 import { formatAgendaHeading, groupByAgendaDate, manilaDate } from "../lib/manila.js";
+import { parseFeedFilter, newsJsonBody, socialsJsonBody, storyMatchesFeed } from "../lib/news-feed.js";
 import { hostnameOf, httpUrl } from "../ports/firecrawl.js";
 import { selectSocialStories, socialPostCopy } from "../ports/news-judge.js";
 import {
   calendarMonth,
   newsHref,
+  newsJsonHref,
   parseNewsKind,
+  parseNewsTags,
   parseNewsTopic,
   parseNotable,
   pickMonth,
   pickSelectedDay,
   socialsHref,
+  socialsJsonHref,
+  tagTabs,
+  toggleTag,
   topicTabs,
 } from "./news-cal.js";
 
@@ -388,22 +394,40 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
     );
   });
 
+  r.get("/news.json", async (c) => {
+    const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
+    setCache(c, 30);
+    c.header("X-Robots-Tag", "noindex");
+    return c.json(newsJsonBody(wire, parseFeedFilter(c.req)));
+  });
+
+  r.get("/socials.json", async (c) => {
+    const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
+    setCache(c, 30);
+    c.header("X-Robots-Tag", "noindex");
+    return c.json(socialsJsonBody(wire, parseFeedFilter(c.req)));
+  });
+
   r.get("/news", async (c) => {
     const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
     const kind = parseNewsKind(c.req.query("kind"));
     const topic = parseNewsTopic(c.req.query("topic"));
+    const tags = parseNewsTags(c.req.queries("tag"));
     const notableOnly = parseNotable(c.req.query("notable"));
     const q = (c.req.query("q") ?? "").trim();
     const qLower = q.toLowerCase();
-    const hrefOpts = { q, kind, topic, notable: notableOnly };
+    const hrefOpts = { q, kind, topic, tags, notable: notableOnly };
     const matches = (text: string) => !qLower || text.toLowerCase().includes(qLower);
-    const storyVisible = (story: (typeof wire.stories)[number]) => {
-      if (topic !== "all" && story.desk?.topic !== topic && !story.desk?.tags.some((tag) => tag === topic)) {
-        return false;
-      }
-      if (notableOnly && !story.desk?.notable) return false;
-      return matches(`${story.title} ${story.snippet} ${story.domain} ${story.desk?.clip ?? ""}`);
-    };
+    const storyVisible = (story: (typeof wire.stories)[number]) =>
+      storyMatchesFeed(story, {
+        topics: topic === "all" ? [] : [topic],
+        categories: [],
+        tags,
+        notable: notableOnly,
+        social: false,
+        council: false,
+        q,
+      });
     const visibleStories = wire.stories.filter(storyVisible);
     const dayCounts = new Map<string, { date: string; stories: number; scrapes: number }>();
     const bump = (date: string, field: "stories" | "scrapes") => {
@@ -450,7 +474,13 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
             </p>
           </div>
           <div class="wire-desk">
-            ${calendarMonth({ month, selected, counts, kind, q, topic, notable: notableOnly })}
+            ${calendarMonth({
+              month,
+              selected,
+              counts,
+              kind,
+              href: (nav) => newsHref({ ...hrefOpts, ...nav }),
+            })}
             <div class="wire-pane">
               <div class="wire-toolbar">
                 <nav class="wire-tabs" aria-label="Kind">
@@ -458,13 +488,15 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
                   <a class="${kind === "headlines" ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, kind: "headlines" })}">Headlines</a>
                   <a class="${kind === "scrapes" ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, kind: "scrapes" })}">Scraped</a>
                   <a class="${notableOnly ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, notable: !notableOnly })}">${notableOnly ? "Clips on" : "Clips"}</a>
-                  <a href="${socialsHref({ topic })}">Socials</a>
+                  <a href="${socialsHref({ topic, tags })}">Socials</a>
+                  <a href="${newsJsonHref({ ...hrefOpts, day: selected })}">JSON</a>
                 </nav>
                 <form class="wire-filter" method="get" action="/news">
                   <input type="hidden" name="day" value="${selected}" />
                   <input type="hidden" name="month" value="${month}" />
                   ${kind !== "all" ? html`<input type="hidden" name="kind" value="${kind}" />` : ""}
                   ${topic !== "all" ? html`<input type="hidden" name="topic" value="${topic}" />` : ""}
+                  ${tags.map((tag) => html`<input type="hidden" name="tag" value="${tag}" />`)}
                   ${notableOnly ? html`<input type="hidden" name="notable" value="1" />` : ""}
                   <input type="search" name="q" value="${q}" placeholder="Filter this day" aria-label="Filter headlines" />
                   <button type="submit">Filter</button>
@@ -476,10 +508,16 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
                     html`<a class="${topic === tab.id ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, topic: tab.id })}">${tab.label}</a>`,
                 )}
               </nav>
+              <nav class="wire-tabs" aria-label="Tags">
+                ${tagTabs().map(
+                  (tab) =>
+                    html`<a class="${tags.includes(tab.id) ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, tags: toggleTag(tags, tab.id) })}">${tab.label}</a>`,
+                )}
+              </nav>
               <p class="section-note">${label} ${selected} · ${headlines.length} headlines · ${scrapes.length} scraped</p>
               <div class="wire-list">
                 ${empty
-                  ? html`<p class="section-note">${q || topic !== "all" || notableOnly ? "No matches for that filter." : "No saved items on this day."}</p>`
+                  ? html`<p class="section-note">${q || topic !== "all" || notableOnly || tags.length ? "No matches for that filter." : "No saved items on this day."}</p>`
                   : html`
                       ${headlines.map((story) => {
                         const href = httpUrl(story.url);
@@ -537,23 +575,38 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
   r.get("/socials", async (c) => {
     const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
     const topic = parseNewsTopic(c.req.query("topic"));
-    const posts = selectSocialStories(wire.stories).filter((story) => {
-      if (topic === "all") return true;
-      return story.desk?.topic === topic || story.desk?.tags.some((tag) => tag === topic);
-    });
-    const buckets = new Map<string, typeof posts>();
-    for (const post of posts) {
+    const tags = parseNewsTags(c.req.queries("tag"));
+    const hrefOpts = { topic, tags };
+    const visible = selectSocialStories(wire.stories).filter((story) =>
+      storyMatchesFeed(story, {
+        topics: topic === "all" ? [] : [topic],
+        categories: [],
+        tags,
+        notable: false,
+        social: false,
+        council: false,
+        q: "",
+      }),
+    );
+    const dayCounts = new Map<string, { date: string; stories: number; scrapes: number }>();
+    for (const post of visible) {
       const date = manilaDate(post.seen_at);
-      const bucket = buckets.get(date) ?? [];
-      bucket.push(post);
-      buckets.set(date, bucket);
+      const row = dayCounts.get(date) ?? { date, stories: 0, scrapes: 0 };
+      row.stories += 1;
+      dayCounts.set(date, row);
     }
-    const days = [...buckets.entries()]
-      .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0))
-      .map(([date, items]) => ({
-        date,
-        items: items.sort((a, b) => (b.desk?.social_score ?? Number(Boolean(b.desk?.notable))) - (a.desk?.social_score ?? Number(Boolean(a.desk?.notable)))),
-      }));
+    const countsList = [...dayCounts.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    const selected = pickSelectedDay(c.req.query("day"), countsList, wire.today);
+    const month = pickMonth(c.req.query("month"), selected, countsList);
+    const counts = new Map(countsList.map((row) => [row.date, row]));
+    const posts = visible
+      .filter((story) => manilaDate(story.seen_at) === selected)
+      .sort(
+        (a, b) =>
+          (b.desk?.social_score ?? Number(Boolean(b.desk?.notable))) -
+          (a.desk?.social_score ?? Number(Boolean(a.desk?.notable))),
+      );
+    const { label } = formatAgendaHeading(selected, wire.today);
 
     return c.html(
       layout({
@@ -570,39 +623,61 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
               Headlines Jev picked from the title, a title hook, or the snippet lead. Code copies that line. It does not write a new caption. Copy the post, then paste it. Not Issues. Not a vote.
             </p>
           </div>
-          <nav class="wire-tabs" aria-label="Desk">
-            ${topicTabs().map(
-              (tab) => html`<a class="${topic === tab.id ? "is-on" : ""}" href="${socialsHref({ topic: tab.id })}">${tab.label}</a>`,
-            )}
-          </nav>
-          <p class="section-note">${posts.length} post${posts.length === 1 ? "" : "s"} · <a href="/news">News desk</a></p>
-          ${days.length === 0
-            ? html`<p class="section-note">${topic !== "all" ? "No social posts on that desk." : "No social posts yet. Scan news with TypeSafe ranking, or classify saved headlines."}</p>`
-            : days.map((day) => {
-                const { label } = formatAgendaHeading(day.date, wire.today);
-                return html`<section class="social-day">
-                  <h2>${label} ${day.date}</h2>
-                  ${day.items.map((story) => {
-                    const href = httpUrl(story.url);
-                    const body = socialPostCopy(story);
-                    const card = html`<article class="social-card">
-                      <p class="kicker">Headline</p>
-                      <p class="social-line">${story.desk?.clip || story.title}</p>
-                      ${href
-                        ? html`<a class="social-url" href="${href}" rel="noopener noreferrer">${story.url}</a>`
-                        : html`<span class="social-url">${story.url}</span>`}
-                      <div class="wire-tags">
-                        ${story.desk?.topic ? html`<span class="wire-tag">${story.desk.topic}</span>` : ""}
-                        ${(story.desk?.tags ?? [])
-                          .filter((tag) => tag !== story.desk?.topic)
-                          .map((tag) => html`<span class="wire-tag">${tag}</span>`)}
-                      </div>
-                      <div class="wire-meta">${story.domain || "source"}${story.date ? html` · ${story.date}` : ""}</div>
-                    </article>`;
-                    return documentBlock(body, card, "Copy post");
-                  })}
-                </section>`;
-              })}
+          <div class="wire-desk">
+            ${calendarMonth({
+              month,
+              selected,
+              counts,
+              kind: "headlines",
+              href: (nav) => socialsHref({ ...hrefOpts, ...nav }),
+              label: "Social calendar",
+            })}
+            <div class="wire-pane">
+              <div class="wire-toolbar">
+                <nav class="wire-tabs" aria-label="Kind">
+                  <a href="${newsHref({ topic, tags, day: selected, month })}">News desk</a>
+                  <a class="is-on" href="${socialsHref({ ...hrefOpts, day: selected, month })}">Socials</a>
+                  <a href="${socialsJsonHref({ ...hrefOpts, day: selected })}">JSON</a>
+                </nav>
+              </div>
+              <nav class="wire-tabs" aria-label="Desk">
+                ${topicTabs().map(
+                  (tab) =>
+                    html`<a class="${topic === tab.id ? "is-on" : ""}" href="${socialsHref({ ...hrefOpts, day: selected, month, topic: tab.id })}">${tab.label}</a>`,
+                )}
+              </nav>
+              <nav class="wire-tabs" aria-label="Tags">
+                ${tagTabs().map(
+                  (tab) =>
+                    html`<a class="${tags.includes(tab.id) ? "is-on" : ""}" href="${socialsHref({ ...hrefOpts, day: selected, month, tags: toggleTag(tags, tab.id) })}">${tab.label}</a>`,
+                )}
+              </nav>
+              <p class="section-note">${label} ${selected} · ${posts.length} post${posts.length === 1 ? "" : "s"}</p>
+              ${posts.length === 0
+                ? html`<p class="section-note">${topic !== "all" || tags.length ? "No social posts for that filter on this day." : "No social posts on this day. Pick another date, or scan news with TypeSafe ranking."}</p>`
+                : html`<section class="social-day">
+                    ${posts.map((story) => {
+                      const href = httpUrl(story.url);
+                      const body = socialPostCopy(story);
+                      const card = html`<article class="social-card">
+                        <p class="kicker">Headline</p>
+                        <p class="social-line">${story.desk?.clip || story.title}</p>
+                        ${href
+                          ? html`<a class="social-url" href="${href}" rel="noopener noreferrer">${story.url}</a>`
+                          : html`<span class="social-url">${story.url}</span>`}
+                        <div class="wire-tags">
+                          ${story.desk?.topic ? html`<span class="wire-tag">${story.desk.topic}</span>` : ""}
+                          ${(story.desk?.tags ?? [])
+                            .filter((tag) => tag !== story.desk?.topic)
+                            .map((tag) => html`<span class="wire-tag">${tag}</span>`)}
+                        </div>
+                        <div class="wire-meta">${story.domain || "source"}${story.date ? html` · ${story.date}` : ""}</div>
+                      </article>`;
+                      return documentBlock(body, card, "Copy post");
+                    })}
+                  </section>`}
+            </div>
+          </div>
         `,
       }),
     );

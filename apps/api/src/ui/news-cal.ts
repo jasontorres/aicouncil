@@ -1,13 +1,25 @@
 import { html } from "hono/html";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { isAgendaDate, isYearMonth, shiftYearMonth } from "../lib/manila.js";
-import { NEWS_TOPICS, type NewsTopic, isNewsTopic } from "../ports/news-judge.js";
+import { NEWS_TAGS, NEWS_TOPICS, isNewsTag, isNewsTopic, type NewsTag, type NewsTopic } from "../ports/news-judge.js";
 
 type Html = HtmlEscapedString | Promise<HtmlEscapedString>;
 
 export type NewsKind = "all" | "headlines" | "scrapes";
 
 export type DayCount = { date: string; stories: number; scrapes: number };
+
+export type WireHrefOpts = {
+  day?: string;
+  month?: string;
+  q?: string;
+  kind?: NewsKind;
+  topic?: NewsTopic | "all";
+  tags?: NewsTag[];
+  notable?: boolean;
+  social?: boolean;
+  council?: boolean;
+};
 
 const DOW = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const MONTHS = [
@@ -36,32 +48,55 @@ export function parseNewsTopic(value: string | undefined): NewsTopic | "all" {
   return "all";
 }
 
+export function parseNewsTags(values: string[] | undefined): NewsTag[] {
+  if (!values?.length) return [];
+  const out: NewsTag[] = [];
+  for (const value of values) {
+    for (const part of value.split(/[+,]/)) {
+      const token = part.trim().toLowerCase();
+      if (isNewsTag(token) && !out.includes(token)) out.push(token);
+    }
+  }
+  return out;
+}
+
 export function parseNotable(value: string | undefined): boolean {
   return value === "1" || value === "true" || value === "notable";
 }
 
-export function newsHref(opts: {
-  day?: string;
-  month?: string;
-  q?: string;
-  kind?: NewsKind;
-  topic?: NewsTopic | "all";
-  notable?: boolean;
-}): string {
+export function toggleTag(current: NewsTag[], tag: NewsTag): NewsTag[] {
+  return current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag];
+}
+
+function wireHref(path: string, opts: WireHrefOpts): string {
   const params = new URLSearchParams();
   if (opts.month) params.set("month", opts.month);
   if (opts.day) params.set("day", opts.day);
   if (opts.q) params.set("q", opts.q);
   if (opts.kind && opts.kind !== "all") params.set("kind", opts.kind);
   if (opts.topic && opts.topic !== "all") params.set("topic", opts.topic);
+  for (const tag of opts.tags ?? []) params.append("tag", tag);
   if (opts.notable) params.set("notable", "1");
+  if (opts.social) params.set("social", "1");
+  if (opts.council) params.set("council", "1");
   const qs = params.toString();
-  return qs ? `/news?${qs}` : "/news";
+  return qs ? `${path}?${qs}` : path;
 }
 
-export function socialsHref(opts: { topic?: NewsTopic | "all" } = {}): string {
-  if (opts.topic && opts.topic !== "all") return `/socials?topic=${encodeURIComponent(opts.topic)}`;
-  return "/socials";
+export function newsHref(opts: WireHrefOpts = {}): string {
+  return wireHref("/news", opts);
+}
+
+export function socialsHref(opts: WireHrefOpts = {}): string {
+  return wireHref("/socials", opts);
+}
+
+export function newsJsonHref(opts: WireHrefOpts = {}): string {
+  return wireHref("/news.json", opts);
+}
+
+export function socialsJsonHref(opts: WireHrefOpts = {}): string {
+  return wireHref("/socials.json", opts);
 }
 
 export function monthLabel(ym: string): string {
@@ -109,24 +144,23 @@ export function calendarMonth(opts: {
   selected: string;
   counts: Map<string, DayCount>;
   kind: NewsKind;
-  q: string;
-  topic: NewsTopic | "all";
-  notable: boolean;
+  href: (opts: { day?: string; month?: string }) => string;
+  label?: string;
 }): Html {
   const dates = [...opts.counts.keys()];
   const months = monthsWithCounts(dates);
   const prev = shiftYearMonth(opts.month, -1);
   const next = shiftYearMonth(opts.month, 1);
   const weeks = calendarWeeks(opts.month);
-  const hrefBase = { q: opts.q, kind: opts.kind, topic: opts.topic, notable: opts.notable };
+  const aria = opts.label ?? "Scan calendar";
 
-  const navLink = (target: string, label: string, aria: string, enabled: boolean) => {
+  const navLink = (target: string, label: string, navAria: string, enabled: boolean) => {
     if (!enabled) return html`<span class="cal-nav-btn is-off" aria-disabled="true">${label}</span>`;
     const day = dayInMonth(target, opts.selected, dates);
-    return html`<a class="cal-nav-btn" href="${newsHref({ ...hrefBase, month: target, day })}" aria-label="${aria}">${label}</a>`;
+    return html`<a class="cal-nav-btn" href="${opts.href({ month: target, day })}" aria-label="${navAria}">${label}</a>`;
   };
 
-  return html`<nav class="wire-cal" aria-label="Scan calendar">
+  return html`<nav class="wire-cal" aria-label="${aria}">
     <div class="cal-nav">
       ${navLink(prev, "‹", "Previous month", months.includes(prev))}
       <span class="cal-label">${monthLabel(opts.month)}</span>
@@ -146,16 +180,12 @@ export function calendarMonth(opts: {
               const ymd = `${opts.month}-${String(day).padStart(2, "0")}`;
               const count = countForKind(opts.counts.get(ymd), opts.kind);
               const selected = ymd === opts.selected;
-              const classes = [
-                "cal-cell",
-                selected ? "is-selected" : "",
-                count > 0 ? "has-hits" : "is-empty",
-              ]
+              const classes = ["cal-cell", selected ? "is-selected" : "", count > 0 ? "has-hits" : "is-empty"]
                 .filter(Boolean)
                 .join(" ");
               if (count > 0) {
                 return html`<td>
-                  <a class="${classes}" href="${newsHref({ ...hrefBase, day: ymd, month: opts.month })}">
+                  <a class="${classes}" href="${opts.href({ day: ymd, month: opts.month })}">
                     <span class="cal-num">${day}</span>
                     <span class="cal-count">${count}</span>
                   </a>
@@ -189,4 +219,8 @@ export function pickMonth(monthParam: string | undefined, selected: string, coun
 
 export function topicTabs(): { id: NewsTopic | "all"; label: string }[] {
   return [{ id: "all", label: "All desks" }, ...NEWS_TOPICS.map((id) => ({ id, label: id }))];
+}
+
+export function tagTabs(): { id: NewsTag; label: string }[] {
+  return NEWS_TAGS.map((id) => ({ id, label: id }));
 }

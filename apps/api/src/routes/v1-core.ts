@@ -12,7 +12,7 @@ import { registerAgentService } from "../services/agents.js";
 import { issuesService } from "../services/issues.js";
 import { recordsService } from "../services/records.js";
 import { curatorService } from "../services/curator.js";
-import { selectSocialStories, socialPostCopy } from "../ports/news-judge.js";
+import { newsJsonBody, parseFeedFilter, socialsJsonBody } from "../lib/news-feed.js";
 import { ApiError } from "../lib/errors.js";
 import { param } from "../lib/params.js";
 import { assertCuratorAuth } from "../lib/curator-auth.js";
@@ -76,73 +76,22 @@ export function v1Router() {
 
   r.get("/news", async (c) => {
     const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
-    const topic = c.req.query("topic");
-    const notableOnly = c.req.query("notable") === "1" || c.req.query("notable") === "true";
-    const stories = wire.stories.filter((story) => {
-      if (topic && story.desk?.topic !== topic && !story.desk?.tags.some((tag) => tag === topic)) {
-        return false;
-      }
-      if (notableOnly && !story.desk?.notable) return false;
-      return true;
-    });
-    return c.json({
-      timezone: wire.timezone,
-      today: wire.today,
-      stories: stories.map((story) => ({
-        url: story.url,
-        title: story.title,
-        snippet: story.snippet,
-        domain: story.domain,
-        seen_at: story.seen_at,
-        topic: story.desk?.topic ?? null,
-        tags: story.desk?.tags ?? [],
-        notable: story.desk?.notable ?? false,
-        social: story.desk?.social ?? story.desk?.notable ?? false,
-        social_score: story.desk?.social_score ?? null,
-        clip: story.desk?.clip || story.title,
-        headline: story.desk?.clip || story.title,
-        notability: story.desk?.notability ?? null,
-        council: story.judgment?.recommend ?? false,
-      })),
-      notice:
-        "Classified scan hits for public clips and social posts, plus cleaned scrapes with a verbatim lede. Not Issues. Not a vote. Filter with ?topic=tech&notable=1. Social posts: GET /v1/socials.",
-      scrapes: wire.scrapes.map((page) => ({
-        url: page.url,
-        title: page.title,
-        summary: page.summary || null,
-        excerpt: page.excerpt,
-        via: page.via,
-        retrieved_at: page.retrieved_at,
-      })),
-    });
+    return c.json(newsJsonBody(wire, parseFeedFilter(c.req)));
+  });
+
+  r.get("/news.json", async (c) => {
+    const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
+    return c.json(newsJsonBody(wire, parseFeedFilter(c.req)));
   });
 
   r.get("/socials", async (c) => {
     const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
-    const topic = c.req.query("topic");
-    const posts = selectSocialStories(wire.stories).filter((story) => {
-      if (!topic) return true;
-      return story.desk?.topic === topic || story.desk?.tags.some((tag) => tag === topic);
-    });
-    return c.json({
-      timezone: wire.timezone,
-      today: wire.today,
-      posts: posts.map((story) => ({
-        url: story.url,
-        title: story.title,
-        domain: story.domain,
-        seen_at: story.seen_at,
-        topic: story.desk?.topic ?? null,
-        tags: story.desk?.tags ?? [],
-        clip: story.desk?.clip || story.title,
-        headline: story.desk?.clip || story.title,
-        body: socialPostCopy(story),
-        social: true,
-        social_score: story.desk?.social_score ?? null,
-      })),
-      notice:
-        "Jev-selected social posts from saved headlines. The body is a verbatim headline plus the source URL. Not Issues. Not a vote.",
-    });
+    return c.json(socialsJsonBody(wire, parseFeedFilter(c.req)));
+  });
+
+  r.get("/socials.json", async (c) => {
+    const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
+    return c.json(socialsJsonBody(wire, parseFeedFilter(c.req)));
   });
 
   r.get("/issues/:id", async (c) => {

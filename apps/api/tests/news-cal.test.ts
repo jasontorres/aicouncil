@@ -33,5 +33,11 @@ describe("news calendar", () => {
     );
     expect(socialsHref()).toBe("/socials");
     expect(socialsHref({ topic: "tech" })).toBe("/socials?topic=tech");
+    expect(socialsHref({ day: "2026-09-14", month: "2026-09", topic: "politics", tags: ["climate"] })).toBe(
+      "/socials?month=2026-09&day=2026-09-14&topic=politics&tag=climate",
+    );
+    expect(newsHref({ day: "2026-09-14", tags: ["tech", "climate"], notable: true })).toBe(
+      "/news?day=2026-09-14&tag=tech&tag=climate&notable=1",
+    );
   });
 });
