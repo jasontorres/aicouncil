@@ -578,6 +578,7 @@ function asJudgment(value: unknown): NewsJudgment | undefined {
     disposition: r.disposition,
     disposition_confidence: typeof r.disposition_confidence === "number" ? r.disposition_confidence : 0,
     actionability: r.actionability,
+    actionability_confidence: typeof r.actionability_confidence === "number" ? r.actionability_confidence : 0,
     recommend: r.recommend === true,
     uncertain: r.uncertain === true,
     rank: typeof r.rank === "number" ? r.rank : 0,

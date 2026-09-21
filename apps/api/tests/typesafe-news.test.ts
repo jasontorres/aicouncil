@@ -218,7 +218,11 @@ describe("TypeSafe news judgments", () => {
     expect(questions.s0_notability?.type).toBe("score");
     expect(questions.s0_clip?.type).toBe("choice");
     expect(questions.s0_tag_tech?.type).toBe("noul");
-    expect(questions.s0_worthy?.instructions).toContain("stories[0]");
+    expect(String(questions.s0_worthy?.instructions)).toContain("stories[0]");
+    expect(questions.s0_clip && questions.s0_clip.type === "choice" ? questions.s0_clip.criteria.none : undefined).toMatch(
+      /neither span/i,
+    );
+    expect(String(questions.s0_clip?.instructions)).not.toMatch(/Copy the title/);
     const state = newsJudgeState([GOSSIP, SENATE]);
     expect(state.stories[0]?.title).toBe(GOSSIP.title);
     expect(newsJudgeQuestions(MAX_JUDGED_HITS + 5)[`s${MAX_JUDGED_HITS}_worthy`]).toBeUndefined();
@@ -250,6 +254,32 @@ describe("TypeSafe news judgments", () => {
     const strong = composeNewsJudgment(rankedAnswers().answers, 1);
     expect(strong?.recommend).toBe(true);
     expect(strong?.disposition).toBe("publish_candidate");
+    expect(strong?.actionability_confidence).toBeGreaterThanOrEqual(0.5);
+  });
+
+  test("spread actionability Score confidence does not recommend a publish candidate", () => {
+    const spread = composeNewsJudgment(
+      {
+        s0_worthy: { type: "noul", noul: 0.9 },
+        s0_disposition: {
+          type: "choice",
+          choice: "publish_candidate",
+          probabilities: { publish_candidate: 0.85, skip_no_instrument: 0.15 },
+          confidence: 0.8,
+        },
+        s0_actionability: {
+          type: "score",
+          score: 1.4,
+          legend: { "0": "a", "1": "b", "2": "c" },
+          probabilities: { "0": 0.3, "1": 0.4, "2": 0.3 },
+          confidence: 0.2,
+        },
+      },
+      0,
+    );
+    expect(spread?.recommend).toBe(false);
+    expect(spread?.uncertain).toBe(true);
+    expect(spread?.actionability).toBe(1.4);
   });
 
   test("gossip drops below a named bill even if it arrived first", () => {
@@ -269,6 +299,24 @@ describe("TypeSafe news judgments", () => {
     expect(desk?.tags).toEqual(expect.arrayContaining(["politics", "climate"]));
     expect(desk?.clip_source).toBe("snippet_lead");
     expect(desk?.clip).toBe("Senators ask DPWH for a unique-site list under the 2026 GAA process.");
+  });
+
+  test("clip none falls back to the title instead of inventing a line", () => {
+    const desk = composeNewsDesk(
+      {
+        ...rankedAnswers().answers,
+        s1_clip: {
+          type: "choice",
+          choice: "none",
+          probabilities: { title: 0.2, snippet_lead: 0.2, none: 0.6 },
+          confidence: 0.5,
+        },
+      },
+      1,
+      SENATE,
+    );
+    expect(desk?.clip_source).toBe("title");
+    expect(desk?.clip).toBe(SENATE.title);
   });
 });
 

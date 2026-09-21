@@ -10,6 +10,8 @@ import {
 
 export const MAX_SUMMARIZED_PAGES = 8;
 export const MAX_SUMMARY_PARAS = 5;
+/** Choice confidence below ~0.5 means the lede options are still competing; keep the code fallback. */
+export const LEDE_CONFIDENCE_MIN = 0.5;
 
 function fallbackSummary(markdown: string, title: string): string {
   const cleaned = cleanNewsMarkdown(markdown || title);
@@ -25,14 +27,15 @@ export function scrapeSummaryQuestions(
   for (let i = 0; i < n; i += 1) {
     const paras = pages[i]?.paragraphs ?? [];
     const criteria: Record<string, string> = {
-      none: "The page is chrome, a cookie wall, or nav. No paragraph is the article lede.",
+      none: "None of these paragraphs is the article lede. The page is chrome, a cookie wall, or nav.",
     };
     paras.forEach((_p, pi) => {
-      criteria[`p${pi}`] = `Copy paragraphs[${pi}] verbatim as the public summary. Do not rewrite it.`;
+      criteria[`p${pi}`] =
+        `\`pages[${i}].paragraphs[${pi}]\` is the article lede — the sentence that states what happened.`;
     });
     questions[`s${i}_lede`] = {
       type: "choice",
-      instructions: `Which paragraph is the article lede for pages[${i}]? Pick the first sentence that states the news. Use pages[${i}].title and pages[${i}].paragraphs. Do not invent a sentence.`,
+      instructions: `Which candidate in \`pages[${i}].paragraphs\` is the article lede for pages[${i}]? Pick the first sentence that states the news. Use \`pages[${i}].title\` and \`pages[${i}].paragraphs\`. If none fits, pick none.`,
       criteria,
     };
   }
@@ -46,7 +49,8 @@ export function applyScrapeSummaries(
   return pages.map((page, i) => {
     const paras = articleParagraphs(`${page.title}\n\n${page.markdown || page.excerpt}`, MAX_SUMMARY_PARAS);
     const picked = choiceAnswer(answers, `s${i}_lede`);
-    if (picked?.choice && picked.choice !== "none") {
+    const confidence = picked && Number.isFinite(picked.confidence) ? picked.confidence : 0;
+    if (picked?.choice && picked.choice !== "none" && confidence >= LEDE_CONFIDENCE_MIN) {
       const idx = Number(picked.choice.replace(/^p/, ""));
       const para = Number.isFinite(idx) ? paras[idx] : undefined;
       if (para && !looksLikeChrome(para)) {
@@ -72,7 +76,7 @@ export async function summarizeScrapedPages(port: TypeSafePort, pages: ScrapedPa
 
   const batch = needJudge.slice(0, MAX_SUMMARIZED_PAGES);
   const state = {
-    task: "Pick a verbatim article lede from cleaned paragraphs. Do not write a new sentence.",
+    task: "Select the article lede from cleaned candidate paragraphs. Code copies the chosen span. Do not write a new sentence.",
     pages: batch.map((page, i) => ({
       id: `s${i}`,
       title: page.title,

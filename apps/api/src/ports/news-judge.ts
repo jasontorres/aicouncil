@@ -18,8 +18,12 @@ export const WORTHY_MIN = 0.55;
 export const ACTIONABILITY_MIN = 0.8;
 /** Low Choice confidence means several dispositions are still plausible. */
 export const DISPOSITION_CONFIDENCE_MIN = 0.4;
+/** Score confidence below ~0.5 is an even spread across levels, not a medium rating. */
+export const ACTIONABILITY_CONFIDENCE_MIN = 0.5;
 /** Score 0–2; 0.8 is past "not worth a public clip". */
 export const NOTABILITY_MIN = 0.8;
+/** Do not mark notable when the notability Score is a spread across levels. */
+export const NOTABILITY_CONFIDENCE_MIN = 0.5;
 /** Independent tags may co-occur; require a clear yes. */
 export const TAG_MIN = 0.65;
 
@@ -62,6 +66,7 @@ export type NewsJudgment = {
   disposition: NewsDisposition;
   disposition_confidence: number;
   actionability: number;
+  actionability_confidence: number;
   recommend: boolean;
   uncertain: boolean;
   rank: number;
@@ -189,10 +194,11 @@ export function notabilityQuestion(index: number): TypeSafeQuestion {
 export function clipQuestion(index: number): TypeSafeQuestion {
   return {
     type: "choice",
-    instructions: `Which verbatim span from stories[${index}] should a public clip use? Copy the title or the lead of the snippet. Do not invent a new sentence.`,
+    instructions: `Which span from stories[${index}] should a public clip use? Pick \`stories[${index}].title\` or the first sentence of \`stories[${index}].snippet\`. Code copies the chosen span. If neither is a usable news line, pick none.`,
     criteria: {
       title: `\`stories[${index}].title\` is the clearer public line.`,
       snippet_lead: `The first sentence of \`stories[${index}].snippet\` is the clearer public line.`,
+      none: "Neither span is a usable public clip: empty, chrome, or not a news line.",
     },
   };
 }
@@ -274,26 +280,29 @@ export function composeNewsJudgment(
   const worthy = noulAnswer(answers, `s${index}_worthy`);
   const disposition = choiceAnswer(answers, `s${index}_disposition`);
   const actionability = scoreAnswer(answers, `s${index}_actionability`);
-  if (worthy === undefined || !disposition || actionability === undefined) return undefined;
+  if (worthy === undefined || !disposition || !actionability) return undefined;
   const label = isNewsDisposition(disposition.choice) ? disposition.choice : "skip_no_instrument";
   const confidence = Number.isFinite(disposition.confidence) ? disposition.confidence : 0;
+  const actionabilityConfidence = Number.isFinite(actionability.confidence) ? actionability.confidence : 0;
   const recommend =
     label === "publish_candidate" &&
     worthy >= WORTHY_MIN &&
-    actionability >= ACTIONABILITY_MIN &&
-    confidence >= DISPOSITION_CONFIDENCE_MIN;
+    actionability.score >= ACTIONABILITY_MIN &&
+    confidence >= DISPOSITION_CONFIDENCE_MIN &&
+    actionabilityConfidence >= ACTIONABILITY_CONFIDENCE_MIN;
   const uncertain =
     !recommend &&
     (label === "publish_candidate" || (worthy >= 0.45 && worthy < WORTHY_MIN));
   const rank =
     worthy * 0.5 +
-    (actionability / 2) * 0.25 +
+    (actionability.score / 2) * 0.25 +
     (label === "publish_candidate" ? 0.25 : 0);
   return {
     worthy,
     disposition: label,
     disposition_confidence: confidence,
-    actionability,
+    actionability: actionability.score,
+    actionability_confidence: actionabilityConfidence,
     recommend,
     uncertain,
     rank,
@@ -308,9 +317,10 @@ export function composeNewsDesk(
   const topic = choiceAnswer(answers, `s${index}_topic`);
   const notability = scoreAnswer(answers, `s${index}_notability`);
   const clip = choiceAnswer(answers, `s${index}_clip`);
-  if (!topic || notability === undefined) return undefined;
+  if (!topic || !notability) return undefined;
   const topicLabel = isNewsTopic(topic.choice) ? topic.choice : "other";
   const topicConfidence = Number.isFinite(topic.confidence) ? topic.confidence : 0;
+  const notabilityConfidence = Number.isFinite(notability.confidence) ? notability.confidence : 0;
   const clipSource = clip && isClipSource(clip.choice) ? clip.choice : "title";
   const tags = NEWS_TAGS.filter((tag) => {
     const n = noulAnswer(answers, `s${index}_tag_${tag}`);
@@ -320,8 +330,8 @@ export function composeNewsDesk(
     topic: topicLabel,
     topic_confidence: topicConfidence,
     tags,
-    notability,
-    notable: notability >= NOTABILITY_MIN,
+    notability: notability.score,
+    notable: notability.score >= NOTABILITY_MIN && notabilityConfidence >= NOTABILITY_CONFIDENCE_MIN,
     clip_source: clipSource,
     clip: clipText(hit, clipSource),
   };

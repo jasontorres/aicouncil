@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { articleParagraphs, cleanNewsMarkdown, looksLikeChrome, presentNewsText } from "../src/lib/news-text.js";
-import { applyScrapeSummaries } from "../src/ports/news-summarize.js";
+import { applyScrapeSummaries, scrapeSummaryQuestions } from "../src/ports/news-summarize.js";
 import { pageFromMarkdown } from "../src/ports/firecrawl.js";
 import type { TypeSafeAnswer } from "../src/ports/typesafe.js";
 
@@ -69,5 +69,30 @@ describe("Jev lede pick", () => {
     expect(out?.summary).toBeTruthy();
     expect(out?.summary).not.toMatch(/!\[/);
     expect(paras).toContain(out?.summary);
+  });
+
+  test("selects among candidates and falls back when Jev picks none or is unconfident", () => {
+    const questions = scrapeSummaryQuestions([{ paragraphs: ["Senators asked DPWH to publish a unique-site list.", "Cookie wall."] }]);
+    expect(questions.s0_lede && questions.s0_lede.type === "choice" ? questions.s0_lede.criteria.none : undefined).toMatch(
+      /none of these paragraphs/i,
+    );
+    expect(JSON.stringify(questions.s0_lede)).not.toMatch(/Copy paragraphs/);
+
+    const page = pageFromMarkdown(
+      "https://www.inquirer.net/news/senate-flood-hearing",
+      "Senate flood hearing",
+      "# Senate flood hearing\n\nSenators asked DPWH to publish a unique-site list of flood-control projects.\n\nThe hearing continues next week under the 2026 GAA process.",
+      "tavily",
+    );
+    const fallback = applyScrapeSummaries([page], {
+      s0_lede: { type: "choice", choice: "none", probabilities: { none: 0.7, p0: 0.3 }, confidence: 0.6 },
+    })[0]?.summary;
+    expect(fallback).toBeTruthy();
+    expect(fallback).not.toMatch(/!\[/);
+
+    const unconfident = applyScrapeSummaries([page], {
+      s0_lede: { type: "choice", choice: "p0", probabilities: { p0: 0.4, p1: 0.35, none: 0.25 }, confidence: 0.2 },
+    })[0]?.summary;
+    expect(unconfident).toBe(fallback);
   });
 });

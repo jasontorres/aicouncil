@@ -5,21 +5,24 @@ export const TYPESAFE_MODEL = "jev-latest";
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
+/** Instructions may be a string, object, or array (live TypeSafe API). */
+export type QuestionInstructions = JsonValue;
+
 export type NoulQuestion = {
   type: "noul";
-  instructions: string;
+  instructions: QuestionInstructions;
   criteria?: { true?: string; false?: string };
 };
 
 export type ChoiceQuestion = {
   type: "choice";
-  instructions: string;
+  instructions: QuestionInstructions;
   criteria: Record<string, string | null>;
 };
 
 export type ScoreQuestion = {
   type: "score";
-  instructions: string;
+  instructions: QuestionInstructions;
   criteria: string[];
 };
 
@@ -76,7 +79,7 @@ export function createTypeSafePort(opts: {
     throw llmError(
       503,
       "typesafe_unconfigured",
-      "TypeSafe ranking needs TYPESAFE_API_KEY on the server. The curator agent does not hold that key. Scan still returns Firecrawl hits.",
+      "TypeSafe ranking needs TYPESAFE_API_KEY on the server. The curator agent does not hold that key. Scan still returns news hits.",
     );
   }
 
@@ -199,7 +202,7 @@ export function choiceAnswer(answers: Record<string, TypeSafeAnswer>, id: string
   return a && a.type === "choice" ? a : undefined;
 }
 
-export function scoreAnswer(answers: Record<string, TypeSafeAnswer>, id: string): number | undefined {
+export function scoreAnswer(answers: Record<string, TypeSafeAnswer>, id: string): ScoreAnswer | undefined {
   const a = answers[id];
-  return a && a.type === "score" && Number.isFinite(a.score) ? a.score : undefined;
+  return a && a.type === "score" && Number.isFinite(a.score) ? a : undefined;
 }
