@@ -14,6 +14,7 @@ import { createFirecrawlPort } from "./ports/firecrawl.js";
 import { createTavilyPort } from "./ports/tavily.js";
 import { createTypeSafePort } from "./ports/typesafe.js";
 import { cacheablePath, cacheableResponse } from "./lib/edge-cache.js";
+import { isCuratorSecret } from "./lib/curator-auth.js";
 import agentsMd from "../../../AGENTS.md";
 import llmsTxt from "../../../llms.txt";
 import charterEn from "../../../CHARTER.md";
@@ -88,9 +89,83 @@ function edgeCache(): EdgeCache | undefined {
   return (globalThis as { caches?: { default?: EdgeCache } }).caches?.default;
 }
 
+async function curatorJson(
+  env: Env,
+  path: string,
+  body: unknown,
+): Promise<{ status: number; json: Record<string, unknown> }> {
+  const app = await getApp(env);
+  const key = readString(env, "CURATOR_API_KEY") ?? DEFAULT_CURATOR;
+  const origin = readString(env, "PUBLIC_BASE_URL") ?? "https://aicouncil.bettergov.ph";
+  const res = await app.fetch(
+    new Request(`${origin}${path}`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${key}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }),
+  );
+  const text = await res.text();
+  let json: Record<string, unknown> = {};
+  try {
+    json = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+  } catch {
+    json = { raw: text.slice(0, 400) };
+  }
+  return { status: res.status, json };
+}
+
+/** One tick: 14-day news scan then classify socials/headlines. Invoked via cron or wrangler --test-scheduled. */
+async function runNewsBackfill(env: Env): Promise<Record<string, unknown>> {
+  const scan = await curatorJson(env, "/v1/curator/scan", { days: 14, limit: 20 });
+  const classify = await curatorJson(env, "/v1/curator/news/classify", { force: true });
+  const hits = Array.isArray(scan.json.hits) ? scan.json.hits : [];
+  const socials = Array.isArray(scan.json.socials) ? scan.json.socials : [];
+  return {
+    scan_status: scan.status,
+    classify_status: classify.status,
+    tbs: scan.json.tbs ?? null,
+    scan_id: scan.json.scan_id ?? null,
+    hits: hits.length,
+    socials: socials.length,
+    classified: classify.json.classified ?? null,
+    typesafe: scan.json.typesafe ?? null,
+    scan_error: scan.json.error ?? null,
+    classify_error: classify.json.error ?? null,
+  };
+}
+
 export default {
+  async scheduled(_event: unknown, env: Env, ctx: WaitCtx): Promise<void> {
+    const run = runNewsBackfill(env).then((summary) => {
+      console.log("curator news backfill", JSON.stringify(summary));
+    });
+    if (ctx?.waitUntil) ctx.waitUntil(run);
+    await run;
+  },
+
   async fetch(request: Request, env: Env, ctx: WaitCtx): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === "/internal/news-backfill" && (request.method === "POST" || request.method === "GET")) {
+      const expected = readString(env, "BACKFILL_TOKEN");
+      const provided = request.headers.get("x-backfill-token")?.trim();
+      if (!expected || !isCuratorSecret(provided, expected)) {
+        return Response.json(
+          { error: { code: "not_found", message: "No such route. See GET /participate." } },
+          { status: 404 },
+        );
+      }
+      const done = runNewsBackfill(env)
+        .then((summary) => console.log("curator news backfill", JSON.stringify(summary)))
+        .catch((err) => console.error("curator news backfill failed", err));
+      if (ctx?.waitUntil) ctx.waitUntil(done);
+      return Response.json(
+        { accepted: true, notice: "14-day news scan and social classify started." },
+        { status: 202 },
+      );
+    }
     if (request.method === "GET" && url.pathname === "/og-image.jpg") {
       return new Response(ogImage, {
         headers: {
