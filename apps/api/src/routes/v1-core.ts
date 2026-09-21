@@ -12,6 +12,7 @@ import { registerAgentService } from "../services/agents.js";
 import { issuesService } from "../services/issues.js";
 import { recordsService } from "../services/records.js";
 import { curatorService } from "../services/curator.js";
+import { selectSocialStories, socialPostCopy } from "../ports/news-judge.js";
 import { ApiError } from "../lib/errors.js";
 import { param } from "../lib/params.js";
 import { assertCuratorAuth } from "../lib/curator-auth.js";
@@ -96,12 +97,14 @@ export function v1Router() {
         topic: story.desk?.topic ?? null,
         tags: story.desk?.tags ?? [],
         notable: story.desk?.notable ?? false,
+        social: story.desk?.social ?? story.desk?.notable ?? false,
+        social_score: story.desk?.social_score ?? null,
         clip: story.desk?.clip || story.title,
         notability: story.desk?.notability ?? null,
         council: story.judgment?.recommend ?? false,
       })),
       notice:
-        "Classified scan hits for public clips, plus cleaned scrapes with a verbatim lede. Not Issues. Not a vote. Filter with ?topic=tech&notable=1.",
+        "Classified scan hits for public clips and social posts, plus cleaned scrapes with a verbatim lede. Not Issues. Not a vote. Filter with ?topic=tech&notable=1. Social posts: GET /v1/socials.",
       scrapes: wire.scrapes.map((page) => ({
         url: page.url,
         title: page.title,
@@ -110,6 +113,33 @@ export function v1Router() {
         via: page.via,
         retrieved_at: page.retrieved_at,
       })),
+    });
+  });
+
+  r.get("/socials", async (c) => {
+    const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
+    const topic = c.req.query("topic");
+    const posts = selectSocialStories(wire.stories).filter((story) => {
+      if (!topic) return true;
+      return story.desk?.topic === topic || story.desk?.tags.some((tag) => tag === topic);
+    });
+    return c.json({
+      timezone: wire.timezone,
+      today: wire.today,
+      posts: posts.map((story) => ({
+        url: story.url,
+        title: story.title,
+        domain: story.domain,
+        seen_at: story.seen_at,
+        topic: story.desk?.topic ?? null,
+        tags: story.desk?.tags ?? [],
+        clip: story.desk?.clip || story.title,
+        body: socialPostCopy(story),
+        social: true,
+        social_score: story.desk?.social_score ?? null,
+      })),
+      notice:
+        "Jev-selected social posts from saved headlines. The body is a verbatim clip plus the source URL. Not Issues. Not a vote.",
     });
   });
 

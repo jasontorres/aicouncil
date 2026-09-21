@@ -196,7 +196,7 @@ const CURATOR_TOOLS = [
   {
     name: "scan_news",
     description:
-      "Search today's Philippine news via the server's Tavily key (Firecrawl is the fallback). Hits may include TypeSafe desk.topic, desk.clip, and judgment.recommend when TYPESAFE_API_KEY is set. Cluster Issues from recommend:true. Public clips are a separate desk. You do not hold the Tavily, Firecrawl, or TypeSafe keys.",
+      "Search today's Philippine news via the server's Tavily key (Firecrawl is the fallback). Hits may include TypeSafe desk.topic, desk.clip, desk.social, and judgment.recommend when TYPESAFE_API_KEY is set. Cluster Issues from recommend:true. Social posts are GET /socials. You do not hold the Tavily, Firecrawl, or TypeSafe keys.",
     inputSchema: {
       type: "object",
       properties: {
@@ -221,7 +221,7 @@ const CURATOR_TOOLS = [
   {
     name: "classify_news",
     description:
-      "Run TypeSafe desk labels on saved headlines and a verbatim lede on saved scrapes (after stripping page-chrome markdown). Does not call Tavily or Firecrawl. Requires TYPESAFE_API_KEY on the server.",
+      "Run TypeSafe desk labels on saved headlines (including social-post picks) and a verbatim lede on saved scrapes. Re-labels desks that are missing desk.social. Does not call Tavily or Firecrawl. Requires TYPESAFE_API_KEY on the server.",
     inputSchema: {
       type: "object",
       properties: { force: { type: "boolean", description: "Re-label hits that already have a desk." } },

@@ -9,9 +9,12 @@ import {
   applyNewsJudgments,
   composeNewsDesk,
   composeNewsJudgment,
+  isSocialPost,
   MAX_JUDGED_HITS,
   newsJudgeQuestions,
   newsJudgeState,
+  selectSocialStories,
+  socialPostCopy,
 } from "../src/ports/news-judge.js";
 import { createTypeSafePort, type SystemOneResult } from "../src/ports/typesafe.js";
 import type { SqlClient } from "../src/db/types.js";
@@ -109,6 +112,7 @@ function deskAnswers(
   notability: number,
   clip: "title" | "snippet_lead",
   tags: { politics?: number; tech?: number; economy?: number; climate?: number },
+  social = 0.1,
 ): SystemOneResult["answers"] {
   return {
     [`s${index}_topic`]: {
@@ -124,6 +128,7 @@ function deskAnswers(
       probabilities: { "0": notability < 0.8 ? 0.8 : 0.05, "1": 0.15, "2": notability >= 1.5 ? 0.8 : 0.15 },
       confidence: 0.75,
     },
+    [`s${index}_social`]: { type: "noul", noul: social },
     [`s${index}_clip`]: {
       type: "choice",
       choice: clip,
@@ -161,7 +166,7 @@ function rankedAnswers(): SystemOneResult {
         probabilities: { "0": 0.9, "1": 0.08, "2": 0.02 },
         confidence: 0.85,
       },
-      ...deskAnswers(0, "other", 0.1, "title", {}),
+      ...deskAnswers(0, "other", 0.1, "title", {}, 0.08),
       s1_worthy: { type: "noul", noul: 0.91 },
       s1_disposition: {
         type: "choice",
@@ -182,7 +187,7 @@ function rankedAnswers(): SystemOneResult {
         probabilities: { "0": 0.05, "1": 0.2, "2": 0.75 },
         confidence: 0.7,
       },
-      ...deskAnswers(1, "politics", 1.7, "snippet_lead", { politics: 0.9, climate: 0.8 }),
+      ...deskAnswers(1, "politics", 1.7, "snippet_lead", { politics: 0.9, climate: 0.8 }, 0.88),
       s2_worthy: { type: "noul", noul: 0.88 },
       s2_disposition: {
         type: "choice",
@@ -203,7 +208,7 @@ function rankedAnswers(): SystemOneResult {
         probabilities: { "0": 0.02, "1": 0.08, "2": 0.9 },
         confidence: 0.82,
       },
-      ...deskAnswers(2, "politics", 1.9, "title", { politics: 0.92 }),
+      ...deskAnswers(2, "politics", 1.9, "title", { politics: 0.92 }, 0.91),
     },
   };
 }
@@ -216,6 +221,7 @@ describe("TypeSafe news judgments", () => {
     expect(questions.s0_actionability?.type).toBe("score");
     expect(questions.s0_topic?.type).toBe("choice");
     expect(questions.s0_notability?.type).toBe("score");
+    expect(questions.s0_social?.type).toBe("noul");
     expect(questions.s0_clip?.type).toBe("choice");
     expect(questions.s0_tag_tech?.type).toBe("noul");
     expect(String(questions.s0_worthy?.instructions)).toContain("stories[0]");
@@ -299,6 +305,10 @@ describe("TypeSafe news judgments", () => {
     expect(desk?.tags).toEqual(expect.arrayContaining(["politics", "climate"]));
     expect(desk?.clip_source).toBe("snippet_lead");
     expect(desk?.clip).toBe("Senators ask DPWH for a unique-site list under the 2026 GAA process.");
+    expect(desk?.social).toBe(true);
+    expect(socialPostCopy({ title: SENATE.title, url: SENATE.url, desk })).toBe(
+      `${desk?.clip}\n\n${SENATE.url}`,
+    );
   });
 
   test("clip none falls back to the title instead of inventing a line", () => {
@@ -317,6 +327,18 @@ describe("TypeSafe news judgments", () => {
     );
     expect(desk?.clip_source).toBe("title");
     expect(desk?.clip).toBe(SENATE.title);
+  });
+
+  test("gossip is not a social post; older notable desks still qualify", () => {
+    const gossip = composeNewsDesk(rankedAnswers().answers, 0, GOSSIP);
+    expect(gossip?.social).toBe(false);
+    expect(isSocialPost(gossip)).toBe(false);
+    expect(isSocialPost({ topic: "politics", topic_confidence: 0.8, tags: [], notability: 1.6, notable: true, clip_source: "title", clip: "Comelec calendar" })).toBe(
+      true,
+    );
+    expect(selectSocialStories([{ title: "a", desk: gossip }, { title: "b", desk: composeNewsDesk(rankedAnswers().answers, 2, COMELEC) }]).map((s) => s.title)).toEqual([
+      "b",
+    ]);
   });
 });
 
@@ -360,6 +382,10 @@ describe("curator scan + TypeSafe", () => {
     const clips = body.clips as { url: string; topic: string }[];
     expect(clips.some((c) => c.topic === "politics")).toBe(true);
     expect(clips.some((c) => c.url.includes("celebrity"))).toBe(false);
+    const socials = body.socials as { url: string; body: string }[];
+    expect(socials.some((s) => s.url === COMELEC.url)).toBe(true);
+    expect(socials.some((s) => s.body.includes(COMELEC.url))).toBe(true);
+    expect(socials.some((s) => s.url.includes("celebrity"))).toBe(false);
     const health = await jsonOf(await app.request("/healthz"));
     expect(health.typesafe).toBe(true);
 
@@ -371,6 +397,23 @@ describe("curator scan + TypeSafe", () => {
     expect(html).toContain("Comelec");
     expect(html).toContain("politics");
     expect(html).toContain("clip");
+    expect(html).toContain("Socials");
+
+    const socialsPage = await app.request("/socials");
+    expect(socialsPage.status).toBe(200);
+    const socialHtml = await socialsPage.text();
+    expect(socialHtml).toContain("noindex");
+    expect(socialHtml).toContain("Comelec");
+    expect(socialHtml).toContain("Copy post");
+    expect(socialHtml).toContain(COMELEC.url);
+    expect(socialHtml).not.toContain("charity gala");
+
+    const socialFeed = await jsonOf(await app.request("/v1/socials"));
+    const posts = socialFeed.posts as { url: string; body: string; social: boolean }[];
+    expect(posts.every((p) => p.social)).toBe(true);
+    expect(posts.some((p) => p.url === COMELEC.url)).toBe(true);
+    expect(posts.some((p) => p.body.includes(COMELEC.url))).toBe(true);
+    expect(posts.some((p) => p.url.includes("celebrity"))).toBe(false);
 
     const feed = await jsonOf(await app.request("/v1/news?topic=politics&notable=1"));
     const stories = feed.stories as { url: string; topic: string }[];

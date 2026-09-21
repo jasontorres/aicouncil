@@ -26,6 +26,8 @@ export const NOTABILITY_MIN = 0.8;
 export const NOTABILITY_CONFIDENCE_MIN = 0.5;
 /** Independent tags may co-occur; require a clear yes. */
 export const TAG_MIN = 0.65;
+/** Noul near 0.5 is yes≈no. A social post needs a clear yes. */
+export const SOCIAL_MIN = 0.65;
 
 export const NEWS_DISPOSITIONS = [
   "publish_candidate",
@@ -78,6 +80,9 @@ export type NewsDesk = {
   tags: NewsTag[];
   notability: number;
   notable: boolean;
+  /** Set when Jev answered the social-post Noul. Absent on older stored desks. */
+  social?: boolean;
+  social_score?: number;
   clip_source: ClipSource;
   clip: string;
 };
@@ -191,6 +196,17 @@ export function notabilityQuestion(index: number): TypeSafeQuestion {
   };
 }
 
+export function socialQuestion(index: number): TypeSafeQuestion {
+  return {
+    type: "noul",
+    instructions: `Would a Philippine public account post stories[${index}] as a social media item, given stories[${index}].title and stories[${index}].snippet? Yes is a shareable public fact — a named decision, result, disaster, deal, outage, or score a person would tap to share. No is gossip, blotter filler, an empty headline, or a story with no hook.`,
+    criteria: {
+      true: "A person would share this as a standalone social post today.",
+      false: "Not a social post: no hook, gossip, or filler.",
+    },
+  };
+}
+
 export function clipQuestion(index: number): TypeSafeQuestion {
   return {
     type: "choice",
@@ -220,6 +236,7 @@ export function newsJudgeQuestions(count: number): Record<string, TypeSafeQuesti
     questions[`s${i}_actionability`] = actionabilityQuestion(i);
     questions[`s${i}_topic`] = topicQuestion(i);
     questions[`s${i}_notability`] = notabilityQuestion(i);
+    questions[`s${i}_social`] = socialQuestion(i);
     questions[`s${i}_clip`] = clipQuestion(i);
     for (const tag of NEWS_TAGS) {
       questions[`s${i}_tag_${tag}`] = tagQuestion(i, tag);
@@ -235,7 +252,7 @@ export function newsJudgeState(hits: NewsHit[]): { arena: string; skip_rules: st
     skip_rules:
       "For council Issues: skip celebrity, sports, vibes-only, unnamed-person crime allegations, polls, and stories with no mechanism. Do not invent bill numbers.",
     public_desk:
-      "Separately, classify every story for a public news desk and whether it is notable enough to clip. Sports, tech launches, and disasters can be public clips even when they are not council Issues.",
+      "Separately, classify every story for a public news desk, whether it is notable enough to clip, and whether it is a social-media post. Sports, tech launches, and disasters can be social posts even when they are not council Issues.",
     stories: hits.slice(0, MAX_JUDGED_HITS).map((h, i) => ({
       id: `s${i}`,
       title: h.title,
@@ -271,6 +288,22 @@ export function clipText(hit: Pick<NewsHit, "title" | "snippet">, source: ClipSo
     return lead || hit.title;
   }
   return hit.title;
+}
+
+export function isSocialPost(desk?: NewsDesk): boolean {
+  if (!desk) return false;
+  if (typeof desk.social === "boolean") return desk.social;
+  return desk.notable === true;
+}
+
+/** Verbatim clip (or title) plus the source URL. Code assembles; Jev does not write a caption. */
+export function socialPostCopy(story: { title: string; url: string; desk?: Pick<NewsDesk, "clip"> }): string {
+  const line = (story.desk?.clip || story.title).replace(/\s+/g, " ").trim();
+  return `${line}\n\n${story.url}`;
+}
+
+export function selectSocialStories<T extends { desk?: NewsDesk }>(stories: T[]): T[] {
+  return stories.filter((story) => isSocialPost(story.desk));
 }
 
 export function composeNewsJudgment(
@@ -326,14 +359,21 @@ export function composeNewsDesk(
     const n = noulAnswer(answers, `s${index}_tag_${tag}`);
     return n !== undefined && n >= TAG_MIN;
   });
+  const notable = notability.score >= NOTABILITY_MIN && notabilityConfidence >= NOTABILITY_CONFIDENCE_MIN;
+  const socialScore = noulAnswer(answers, `s${index}_social`);
+  const clipLine = clipText(hit, clipSource);
+  const social =
+    socialScore !== undefined ? socialScore >= SOCIAL_MIN && Boolean(clipLine) : notable;
   return {
     topic: topicLabel,
     topic_confidence: topicConfidence,
     tags,
     notability: notability.score,
-    notable: notability.score >= NOTABILITY_MIN && notabilityConfidence >= NOTABILITY_CONFIDENCE_MIN,
+    notable,
+    social,
+    social_score: socialScore ?? (notable ? 0.7 : 0),
     clip_source: clipSource,
-    clip: clipText(hit, clipSource),
+    clip: clipLine,
   };
 }
 
@@ -364,6 +404,8 @@ export function sortJudgedHits(hits: JudgedNewsHit[]): JudgedNewsHit[] {
       if (rec !== 0) return rec;
       const notable = Number(Boolean(b.hit.desk?.notable)) - Number(Boolean(a.hit.desk?.notable));
       if (notable !== 0) return notable;
+      const social = Number(Boolean(isSocialPost(b.hit.desk))) - Number(Boolean(isSocialPost(a.hit.desk)));
+      if (social !== 0) return social;
       const unc = Number(Boolean(jb?.uncertain)) - Number(Boolean(ja?.uncertain));
       if (unc !== 0) return unc;
       const rank = (jb?.rank ?? -1) - (ja?.rank ?? -1);

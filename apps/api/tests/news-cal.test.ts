@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { calendarWeeks, dayInMonth, monthLabel, newsHref, pickMonth } from "../src/ui/news-cal.js";
+import { calendarWeeks, dayInMonth, monthLabel, newsHref, pickMonth, socialsHref } from "../src/ui/news-cal.js";
 
 describe("news calendar", () => {
   test("labels months without using the locale clock", () => {
@@ -31,5 +31,7 @@ describe("news calendar", () => {
     expect(newsHref({ day: "2026-09-14", month: "2026-09", topic: "tech", notable: true })).toBe(
       "/news?month=2026-09&day=2026-09-14&topic=tech&notable=1",
     );
+    expect(socialsHref()).toBe("/socials");
+    expect(socialsHref({ topic: "tech" })).toBe("/socials?topic=tech");
   });
 });

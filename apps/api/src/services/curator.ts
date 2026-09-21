@@ -18,6 +18,8 @@ import {
   judgeNewsHitBatches,
   judgeNewsHits,
   NEWS_TAGS,
+  selectSocialStories,
+  socialPostCopy,
   type JudgedNewsHit,
   type NewsDesk,
   type NewsJudgment,
@@ -145,6 +147,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
       const tracker = await issuesService(sql).tracker();
       const candidates = ranked.hits.filter((h) => h.judgment?.recommend);
       const clips = ranked.hits.filter((h) => h.desk?.notable);
+      const socials = selectSocialStories(ranked.hits);
       return {
         scan_id: id,
         timezone: "Asia/Manila",
@@ -165,6 +168,16 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
           clip: h.desk?.clip,
           notability: h.desk?.notability,
         })),
+        socials: socials.map((h) => ({
+          url: h.url,
+          title: h.title,
+          topic: h.desk?.topic,
+          tags: h.desk?.tags,
+          clip: h.desk?.clip,
+          body: socialPostCopy(h),
+          social: h.desk?.social ?? true,
+          social_score: h.desk?.social_score ?? null,
+        })),
         typesafe: {
           configured: ranked.configured,
           model: ranked.model,
@@ -176,7 +189,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
         cap: CAPS.issuesPerManilaDay,
         notice:
           ranked.configured && !ranked.error
-            ? "You are the curator, not a council member. Hits carry TypeSafe (Jev) council ranking (judgment.recommend) and a public desk (desk.topic, desk.clip). Ranking is not permission to publish an Issue. Cluster duplicate coverage. Skip Issues if you cannot name a controlling instrument. Do not invent peso figures or crimes by named people. Do not file Positions."
+            ? "You are the curator, not a council member. Hits carry TypeSafe (Jev) council ranking (judgment.recommend), a public desk (desk.topic, desk.clip), and social-post picks (desk.social). GET /socials for copy-ready posts. Ranking is not permission to publish an Issue. Cluster duplicate coverage. Skip Issues if you cannot name a controlling instrument. Do not invent peso figures or crimes by named people. Do not file Positions."
             : "You are the curator, not a council member. Cluster duplicate coverage into distinct controversies. Publish at most the remaining slots. Each Issue needs a decision-question and a real Context Pack (statutes min 1). News goes in pack.data. Do not invent peso figures or crimes by named people. Do not file Positions.",
       };
     },
@@ -302,7 +315,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
         for (const hit of row.hits) {
           const key = hit.url.replace(/\/+$/, "").toLowerCase();
           if (seen.has(key)) continue;
-          if (!input.force && hit.desk?.topic) continue;
+          if (!input.force && hit.desk?.topic && typeof hit.desk.social === "boolean") continue;
           seen.add(key);
           unique.push(hit);
         }
@@ -352,7 +365,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
         model: ranked.model ?? washed.model,
         error: ranked.error ?? null,
         notice:
-          "Saved scan hits now carry desk.topic, desk.tags, desk.clip, and council judgment. Scrapes carry a cleaned excerpt and a verbatim lede. GET /news or GET /v1/news. This is not a publish decision.",
+          "Saved scan hits now carry desk.topic, desk.tags, desk.clip, desk.social, and council judgment. Scrapes carry a cleaned excerpt and a verbatim lede. GET /socials or GET /v1/socials for copy-ready posts. GET /news. This is not a publish decision.",
       };
     },
 
@@ -593,13 +606,20 @@ function asDesk(value: unknown): NewsDesk | undefined {
   const tags = Array.isArray(r.tags)
     ? r.tags.filter((tag): tag is NewsTag => typeof tag === "string" && (NEWS_TAGS as readonly string[]).includes(tag))
     : [];
+  const notable = r.notable === true || r.notability >= 0.8;
   const clipSource = typeof r.clip_source === "string" && isClipSource(r.clip_source) ? r.clip_source : "title";
   return {
     topic: r.topic,
     topic_confidence: typeof r.topic_confidence === "number" ? r.topic_confidence : 0,
     tags,
     notability: r.notability,
-    notable: r.notable === true || r.notability >= 0.8,
+    notable,
+    ...(typeof r.social === "boolean"
+      ? {
+          social: r.social,
+          social_score: typeof r.social_score === "number" ? r.social_score : 0,
+        }
+      : {}),
     clip_source: clipSource,
     clip: typeof r.clip === "string" && r.clip.trim() ? r.clip.trim() : "",
   };

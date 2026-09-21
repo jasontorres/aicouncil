@@ -59,6 +59,11 @@ export function newsHref(opts: {
   return qs ? `/news?${qs}` : "/news";
 }
 
+export function socialsHref(opts: { topic?: NewsTopic | "all" } = {}): string {
+  if (opts.topic && opts.topic !== "all") return `/socials?topic=${encodeURIComponent(opts.topic)}`;
+  return "/socials";
+}
+
 export function monthLabel(ym: string): string {
   if (!isYearMonth(ym)) return ym;
   const month = Number(ym.slice(5, 7));

@@ -311,6 +311,25 @@ pre.snippet { margin: 0.8rem 0 1.2rem; }
 .copy-doc .copy-btn { position: static; }
 .copy-toolbar { display: flex; justify-content: flex-end; margin: 0 0 8px; }
 .copy-block pre.snippet { padding-top: 44px; }
+.social-day { margin-top: 0.4rem; }
+.social-card { max-width: 46rem; }
+.social-line {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.social-url {
+  display: inline-block;
+  margin-top: 0.45rem;
+  font-size: 0.88rem;
+  word-break: break-all;
+}
+.copy-doc.social-copy, .social-day .copy-block.copy-doc {
+  padding: 16px 0 8px;
+  border-bottom: 1px dashed var(--dash);
+}
+.social-day .copy-block.copy-doc .copy-toolbar { margin-bottom: 10px; }
 .docs-list { max-width: 46rem; }
 .docs-list li { margin: 0.35rem 0; }
 .prov {
@@ -403,6 +422,7 @@ footer.app {
   color: var(--muted);
 }
 .wire-tag.is-clip { border-color: var(--accent); color: var(--accent); }
+.wire-tag.is-social { background: var(--accent); color: var(--paper); border-color: transparent; }
 .wire-tag.is-council { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
 .wire-desk {
   display: grid;

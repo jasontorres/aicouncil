@@ -17,6 +17,7 @@ import { registerAgentService } from "../services/agents.js";
 import { curatorService } from "../services/curator.js";
 import { formatAgendaHeading, groupByAgendaDate, manilaDate } from "../lib/manila.js";
 import { hostnameOf, httpUrl } from "../ports/firecrawl.js";
+import { selectSocialStories, socialPostCopy } from "../ports/news-judge.js";
 import {
   calendarMonth,
   newsHref,
@@ -25,6 +26,7 @@ import {
   parseNotable,
   pickMonth,
   pickSelectedDay,
+  socialsHref,
   topicTabs,
 } from "./news-cal.js";
 
@@ -456,6 +458,7 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
                   <a class="${kind === "headlines" ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, kind: "headlines" })}">Headlines</a>
                   <a class="${kind === "scrapes" ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, kind: "scrapes" })}">Scraped</a>
                   <a class="${notableOnly ? "is-on" : ""}" href="${newsHref({ ...hrefOpts, day: selected, month, notable: !notableOnly })}">${notableOnly ? "Clips on" : "Clips"}</a>
+                  <a href="${socialsHref({ topic })}">Socials</a>
                 </nav>
                 <form class="wire-filter" method="get" action="/news">
                   <input type="hidden" name="day" value="${selected}" />
@@ -494,6 +497,7 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
                                 .filter((tag) => tag !== story.desk?.topic)
                                 .map((tag) => html`<span class="wire-tag">${tag}</span>`)}
                               ${story.desk?.notable ? html`<span class="wire-tag is-clip">clip</span>` : ""}
+                              ${story.desk?.social ? html`<span class="wire-tag is-social">social</span>` : ""}
                               ${story.judgment?.recommend ? html`<span class="wire-tag is-council">council</span>` : ""}
                             </div>
                             <div class="wire-meta">
@@ -525,6 +529,79 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
               </div>
             </div>
           </div>
+        `,
+      }),
+    );
+  });
+
+  r.get("/socials", async (c) => {
+    const wire = await curatorService(c.get("sql"), c.get("firecrawl"), c.get("typesafe")).newsWire();
+    const topic = parseNewsTopic(c.req.query("topic"));
+    const posts = selectSocialStories(wire.stories).filter((story) => {
+      if (topic === "all") return true;
+      return story.desk?.topic === topic || story.desk?.tags.some((tag) => tag === topic);
+    });
+    const buckets = new Map<string, typeof posts>();
+    for (const post of posts) {
+      const date = manilaDate(post.seen_at);
+      const bucket = buckets.get(date) ?? [];
+      bucket.push(post);
+      buckets.set(date, bucket);
+    }
+    const days = [...buckets.entries()]
+      .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0))
+      .map(([date, items]) => ({
+        date,
+        items: items.sort((a, b) => (b.desk?.social_score ?? Number(Boolean(b.desk?.notable))) - (a.desk?.social_score ?? Number(Boolean(a.desk?.notable)))),
+      }));
+
+    return c.html(
+      layout({
+        title: "Social posts",
+        robots: "noindex",
+        path: "/socials",
+        description: "Jev-selected social posts from saved headlines. Verbatim clip plus URL. Not Issues. Not a vote.",
+        body: html`
+          <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / <a href="/news">news</a> / socials</p>
+          <div class="record-head">
+            <div class="kicker"><span class="tag-on">Unlisted</span> <span>Asia/Manila ${wire.today}</span></div>
+            <h1>Social posts</h1>
+            <p class="desc">
+              Headlines Jev marked as social-media posts. The line is a verbatim clip from the story. Copy the post, then paste it. Not Issues. Not a vote.
+            </p>
+          </div>
+          <nav class="wire-tabs" aria-label="Desk">
+            ${topicTabs().map(
+              (tab) => html`<a class="${topic === tab.id ? "is-on" : ""}" href="${socialsHref({ topic: tab.id })}">${tab.label}</a>`,
+            )}
+          </nav>
+          <p class="section-note">${posts.length} post${posts.length === 1 ? "" : "s"} · <a href="/news">News desk</a></p>
+          ${days.length === 0
+            ? html`<p class="section-note">${topic !== "all" ? "No social posts on that desk." : "No social posts yet. Scan news with TypeSafe ranking, or classify saved headlines."}</p>`
+            : days.map((day) => {
+                const { label } = formatAgendaHeading(day.date, wire.today);
+                return html`<section class="social-day">
+                  <h2>${label} ${day.date}</h2>
+                  ${day.items.map((story) => {
+                    const href = httpUrl(story.url);
+                    const body = socialPostCopy(story);
+                    const card = html`<article class="social-card">
+                      <p class="social-line">${story.desk?.clip || story.title}</p>
+                      ${href
+                        ? html`<a class="social-url" href="${href}" rel="noopener noreferrer">${story.url}</a>`
+                        : html`<span class="social-url">${story.url}</span>`}
+                      <div class="wire-tags">
+                        ${story.desk?.topic ? html`<span class="wire-tag">${story.desk.topic}</span>` : ""}
+                        ${(story.desk?.tags ?? [])
+                          .filter((tag) => tag !== story.desk?.topic)
+                          .map((tag) => html`<span class="wire-tag">${tag}</span>`)}
+                      </div>
+                      <div class="wire-meta">${story.domain || "source"}${story.date ? html` · ${story.date}` : ""}</div>
+                    </article>`;
+                    return documentBlock(body, card, "Copy post");
+                  })}
+                </section>`;
+              })}
         `,
       }),
     );
