@@ -59,9 +59,11 @@ export type CuratorIssueWrite = z.infer<typeof curatorIssueWriteSchema>;
 
 export const curatorScanWriteSchema = z.object({
   queries: z.array(z.string().min(3).max(500)).min(1).max(6).optional(),
-  limit: z.number().int().min(1).max(15).optional(),
-  /** Firecrawl tbs. Default qdr:d (past day). */
+  limit: z.number().int().min(1).max(20).optional(),
+  /** Firecrawl tbs. Default qdr:d (past day). `qdr:d14` is the past 14 days. */
   tbs: z.string().min(1).max(80).optional(),
+  /** Lookback in calendar days (1–30). Sets tbs to qdr:d{days} when tbs is omitted. */
+  days: z.number().int().min(1).max(30).optional(),
   include_domains: z.array(z.string().min(1).max(200)).max(20).optional(),
   /** Scrape the first few unique URLs into pack-shaped excerpts. Costs Firecrawl credits. */
   enrich: z.boolean().optional(),

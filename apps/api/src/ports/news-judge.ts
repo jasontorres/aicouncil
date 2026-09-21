@@ -59,7 +59,7 @@ export const NEWS_TAGS = ["politics", "tech", "economy", "climate"] as const;
 
 export type NewsTag = (typeof NEWS_TAGS)[number];
 
-export const CLIP_SOURCES = ["title", "snippet_lead"] as const;
+export const CLIP_SOURCES = ["title", "title_hook", "snippet_lead"] as const;
 
 export type ClipSource = (typeof CLIP_SOURCES)[number];
 
@@ -210,11 +210,12 @@ export function socialQuestion(index: number): TypeSafeQuestion {
 export function clipQuestion(index: number): TypeSafeQuestion {
   return {
     type: "choice",
-    instructions: `Which span from stories[${index}] should a public clip use? Pick \`stories[${index}].title\` or the first sentence of \`stories[${index}].snippet\`. Code copies the chosen span. If neither is a usable news line, pick none.`,
+    instructions: `Which candidate in stories[${index}] is the public headline for a social post or news clip? Pick \`stories[${index}].headline_title\`, \`stories[${index}].headline_hook\` if it is non-empty, or \`stories[${index}].headline_lead\`. Code copies the chosen span. If none is a usable headline, pick none.`,
     criteria: {
-      title: `\`stories[${index}].title\` is the clearer public line.`,
-      snippet_lead: `The first sentence of \`stories[${index}].snippet\` is the clearer public line.`,
-      none: "Neither span is a usable public clip: empty, chrome, or not a news line.",
+      title: `\`stories[${index}].headline_title\` is the clearest public headline.`,
+      title_hook: `\`stories[${index}].headline_hook\` is a shorter headline taken from the title after a dash, pipe, or colon. Do not pick this if headline_hook is empty.`,
+      snippet_lead: `\`stories[${index}].headline_lead\` is the first sentence of the snippet and is the clearer headline.`,
+      none: "None of these is a usable headline: empty, chrome, or not a news line.",
     },
   };
 }
@@ -253,13 +254,19 @@ export function newsJudgeState(hits: NewsHit[]): { arena: string; skip_rules: st
       "For council Issues: skip celebrity, sports, vibes-only, unnamed-person crime allegations, polls, and stories with no mechanism. Do not invent bill numbers.",
     public_desk:
       "Separately, classify every story for a public news desk, whether it is notable enough to clip, and whether it is a social-media post. Sports, tech launches, and disasters can be social posts even when they are not council Issues.",
-    stories: hits.slice(0, MAX_JUDGED_HITS).map((h, i) => ({
-      id: `s${i}`,
-      title: h.title,
-      snippet: h.snippet,
-      url: h.url,
-      query: h.query,
-    })),
+    stories: hits.slice(0, MAX_JUDGED_HITS).map((h, i) => {
+      const headlines = headlineSpans(h);
+      return {
+        id: `s${i}`,
+        title: h.title,
+        snippet: h.snippet,
+        url: h.url,
+        query: h.query,
+        headline_title: headlines.title,
+        headline_hook: headlines.title_hook ?? "",
+        headline_lead: headlines.snippet_lead ?? "",
+      };
+    }),
   };
 }
 
@@ -282,12 +289,29 @@ export function snippetLead(snippet: string): string {
   return (sentence?.[1] ?? trimmed).slice(0, 220);
 }
 
+/** Shorter headline after a dash, pipe, or colon in the title. */
+export function titleHook(title: string): string {
+  const trimmed = title.replace(/\s+/g, " ").trim();
+  const parts = trimmed.split(/\s+[–—|:]\s+/);
+  if (parts.length < 2) return "";
+  const last = (parts[parts.length - 1] ?? "").trim();
+  if (last.length < 18 || last.length > 140 || last === trimmed) return "";
+  return last;
+}
+
+export function headlineSpans(hit: Pick<NewsHit, "title" | "snippet">): Partial<Record<ClipSource, string>> & { title: string } {
+  const title = hit.title.replace(/\s+/g, " ").trim();
+  const spans: Partial<Record<ClipSource, string>> & { title: string } = { title };
+  const hook = titleHook(title);
+  if (hook) spans.title_hook = hook;
+  const lead = snippetLead(hit.snippet);
+  if (lead && lead !== title && lead !== hook) spans.snippet_lead = lead;
+  return spans;
+}
+
 export function clipText(hit: Pick<NewsHit, "title" | "snippet">, source: ClipSource): string {
-  if (source === "snippet_lead") {
-    const lead = snippetLead(hit.snippet);
-    return lead || hit.title;
-  }
-  return hit.title;
+  const spans = headlineSpans(hit);
+  return spans[source] || hit.title;
 }
 
 export function isSocialPost(desk?: NewsDesk): boolean {

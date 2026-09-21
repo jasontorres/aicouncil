@@ -9,12 +9,14 @@ import {
   applyNewsJudgments,
   composeNewsDesk,
   composeNewsJudgment,
+  headlineSpans,
   isSocialPost,
   MAX_JUDGED_HITS,
   newsJudgeQuestions,
   newsJudgeState,
   selectSocialStories,
   socialPostCopy,
+  titleHook,
 } from "../src/ports/news-judge.js";
 import { createTypeSafePort, type SystemOneResult } from "../src/ports/typesafe.js";
 import type { SqlClient } from "../src/db/types.js";
@@ -110,7 +112,7 @@ function deskAnswers(
   index: number,
   topic: string,
   notability: number,
-  clip: "title" | "snippet_lead",
+  clip: "title" | "title_hook" | "snippet_lead",
   tags: { politics?: number; tech?: number; economy?: number; climate?: number },
   social = 0.1,
 ): SystemOneResult["answers"] {
@@ -226,7 +228,10 @@ describe("TypeSafe news judgments", () => {
     expect(questions.s0_tag_tech?.type).toBe("noul");
     expect(String(questions.s0_worthy?.instructions)).toContain("stories[0]");
     expect(questions.s0_clip && questions.s0_clip.type === "choice" ? questions.s0_clip.criteria.none : undefined).toMatch(
-      /neither span/i,
+      /none of these is a usable headline/i,
+    );
+    expect(questions.s0_clip && questions.s0_clip.type === "choice" ? questions.s0_clip.criteria.title_hook : undefined).toMatch(
+      /headline_hook/,
     );
     expect(String(questions.s0_clip?.instructions)).not.toMatch(/Copy the title/);
     const state = newsJudgeState([GOSSIP, SENATE]);
@@ -329,6 +334,30 @@ describe("TypeSafe news judgments", () => {
     expect(desk?.clip).toBe(SENATE.title);
   });
 
+  test("headline Choice can copy a title hook instead of generating a line", () => {
+    const hit = {
+      title: "PhilHealth | Under 24-hour hospital stay covered",
+      snippet: "The state insurer will pay for inpatient admissions that last less than a day.",
+    };
+    expect(titleHook(hit.title)).toBe("Under 24-hour hospital stay covered");
+    expect(headlineSpans(hit).title_hook).toBe("Under 24-hour hospital stay covered");
+    const desk = composeNewsDesk(
+      {
+        ...rankedAnswers().answers,
+        s1_clip: {
+          type: "choice",
+          choice: "title_hook",
+          probabilities: { title: 0.2, title_hook: 0.7, snippet_lead: 0.1, none: 0 },
+          confidence: 0.8,
+        },
+      },
+      1,
+      hit,
+    );
+    expect(desk?.clip_source).toBe("title_hook");
+    expect(desk?.clip).toBe("Under 24-hour hospital stay covered");
+  });
+
   test("gossip is not a social post; older notable desks still qualify", () => {
     const gossip = composeNewsDesk(rankedAnswers().answers, 0, GOSSIP);
     expect(gossip?.social).toBe(false);
@@ -394,23 +423,26 @@ describe("curator scan + TypeSafe", () => {
     const html = await newsPage.text();
     expect(html).toContain("What's in the news");
     expect(html).toContain("noindex");
-    expect(html).toContain("Comelec");
     expect(html).toContain("politics");
     expect(html).toContain("clip");
     expect(html).toContain("Socials");
+    const datedNews = await app.request("/news?day=2026-08-23");
+    expect(await datedNews.text()).toContain("Comelec");
 
     const socialsPage = await app.request("/socials");
     expect(socialsPage.status).toBe(200);
     const socialHtml = await socialsPage.text();
     expect(socialHtml).toContain("noindex");
+    expect(socialHtml).toContain("Headline");
     expect(socialHtml).toContain("Comelec");
     expect(socialHtml).toContain("Copy post");
     expect(socialHtml).toContain(COMELEC.url);
     expect(socialHtml).not.toContain("charity gala");
 
     const socialFeed = await jsonOf(await app.request("/v1/socials"));
-    const posts = socialFeed.posts as { url: string; body: string; social: boolean }[];
+    const posts = socialFeed.posts as { url: string; body: string; social: boolean; headline?: string }[];
     expect(posts.every((p) => p.social)).toBe(true);
+    expect(posts.some((p) => p.headline && p.body.startsWith(p.headline))).toBe(true);
     expect(posts.some((p) => p.url === COMELEC.url)).toBe(true);
     expect(posts.some((p) => p.body.includes(COMELEC.url))).toBe(true);
     expect(posts.some((p) => p.url.includes("celebrity"))).toBe(false);

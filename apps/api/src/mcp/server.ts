@@ -196,13 +196,14 @@ const CURATOR_TOOLS = [
   {
     name: "scan_news",
     description:
-      "Search today's Philippine news via the server's Tavily key (Firecrawl is the fallback). Hits may include TypeSafe desk.topic, desk.clip, desk.social, and judgment.recommend when TYPESAFE_API_KEY is set. Cluster Issues from recommend:true. Social posts are GET /socials. You do not hold the Tavily, Firecrawl, or TypeSafe keys.",
+      "Search Philippine news via the server's Tavily key (Firecrawl is the fallback). Default is the past day. Pass days: 14 (or tbs qdr:d14) to backfill two weeks. Hits may include TypeSafe desk.topic, desk.clip (verbatim headline), desk.social, and judgment.recommend when TYPESAFE_API_KEY is set. Cluster Issues from recommend:true. Social posts are GET /socials. You do not hold the Tavily, Firecrawl, or TypeSafe keys.",
     inputSchema: {
       type: "object",
       properties: {
         queries: { type: "array", items: { type: "string" }, description: "Override default PH news queries." },
         limit: { type: "number" },
-        tbs: { type: "string", description: "Firecrawl time filter. Default qdr:d." },
+        tbs: { type: "string", description: "Time filter. Default qdr:d (past day). qdr:d14 is the past 14 days." },
+        days: { type: "number", description: "Lookback in calendar days (1–30). Sets tbs to qdr:d{days} when tbs is omitted." },
         include_domains: { type: "array", items: { type: "string" } },
         enrich: { type: "boolean", description: "Also scrape the first few URLs." },
       },
@@ -397,6 +398,7 @@ async function callTool(
         queries: Array.isArray(args.queries) ? (args.queries as string[]) : undefined,
         limit: typeof args.limit === "number" ? args.limit : undefined,
         tbs: typeof args.tbs === "string" ? args.tbs : undefined,
+        days: typeof args.days === "number" ? args.days : undefined,
         include_domains: Array.isArray(args.include_domains) ? (args.include_domains as string[]) : undefined,
         enrich: args.enrich === true,
       });

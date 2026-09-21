@@ -1,4 +1,5 @@
 import { llmError } from "../lib/errors.js";
+import { addDaysYmd, manilaToday } from "../lib/manila.js";
 import {
   DEFAULT_NEWS_DOMAINS,
   pageFromMarkdown,
@@ -25,12 +26,63 @@ type FetchLike = typeof fetch;
 const TAVILY_SEARCH = "https://api.tavily.com/search";
 const TAVILY_EXTRACT = "https://api.tavily.com/extract";
 
-export function timeRangeFromTbs(tbs: string): "day" | "week" | "month" | "year" {
+export type NamedTimeRange = "day" | "week" | "month" | "year";
+
+export type NewsLookback =
+  | { mode: "range"; time_range: NamedTimeRange }
+  | { mode: "window"; days: number; start_date: string; end_date: string };
+
+/** Map Firecrawl tbs / `qdr:d14` onto a Tavily time_range or start/end window. */
+export function newsLookback(tbs: string, today = manilaToday()): NewsLookback {
   const raw = tbs.trim().toLowerCase();
-  if (raw === "qdr:w" || raw === "w" || raw === "week") return "week";
-  if (raw === "qdr:m" || raw === "m" || raw === "month") return "month";
-  if (raw === "qdr:y" || raw === "y" || raw === "year") return "year";
-  return "day";
+  const custom = raw.match(/^(?:qdr:)?d(\d+)$/) ?? raw.match(/^(\d+)\s*d(?:ays?)?$/);
+  if (custom) {
+    const days = Math.min(Math.max(Number(custom[1]), 1), 30);
+    if (days === 1) return { mode: "range", time_range: "day" };
+    if (days === 7) return { mode: "range", time_range: "week" };
+    return {
+      mode: "window",
+      days,
+      start_date: addDaysYmd(today, 1 - days),
+      end_date: today,
+    };
+  }
+  if (raw === "qdr:w" || raw === "w" || raw === "week") return { mode: "range", time_range: "week" };
+  if (raw === "qdr:m" || raw === "m" || raw === "month") return { mode: "range", time_range: "month" };
+  if (raw === "qdr:y" || raw === "y" || raw === "year") return { mode: "range", time_range: "year" };
+  return { mode: "range", time_range: "day" };
+}
+
+export function timeRangeFromTbs(tbs: string): NamedTimeRange {
+  const lookback = newsLookback(tbs);
+  if (lookback.mode === "range") return lookback.time_range;
+  if (lookback.days <= 7) return "week";
+  if (lookback.days <= 31) return "month";
+  return "year";
+}
+
+export function tbsFromDays(days: number): string {
+  const n = Math.min(Math.max(Math.trunc(days), 1), 30);
+  return `qdr:d${n}`;
+}
+
+const LOOKBACK_CHUNK_DAYS = 7;
+
+/** Split a multi-week window so Tavily does not collapse two weeks into the latest 20 hits. */
+export function lookbackWindows(lookback: NewsLookback): NewsLookback[] {
+  if (lookback.mode === "range") return [lookback];
+  if (lookback.days <= LOOKBACK_CHUNK_DAYS) return [lookback];
+  const windows: NewsLookback[] = [];
+  let end = lookback.end_date;
+  let covered = 0;
+  while (covered < lookback.days) {
+    const span = Math.min(LOOKBACK_CHUNK_DAYS, lookback.days - covered);
+    const start = addDaysYmd(end, 1 - span);
+    windows.push({ mode: "window", days: span, start_date: start, end_date: end });
+    covered += span;
+    end = addDaysYmd(start, -1);
+  }
+  return windows;
 }
 
 export function createTavilyPort(opts: { apiKey?: string; fetchImpl?: FetchLike } = {}): TavilyPort {
@@ -92,26 +144,34 @@ export function createTavilyPort(opts: { apiKey?: string; fetchImpl?: FetchLike 
       const seen = new Set<string>();
       const maxResults = Math.min(Math.max(input.limit, 1), 20);
       const domains = input.includeDomains?.length ? input.includeDomains : DEFAULT_NEWS_DOMAINS;
+      const windows = lookbackWindows(newsLookback(input.tbs));
       for (const query of input.queries) {
-        const payload: Record<string, unknown> = {
-          query,
-          topic: "news",
-          search_depth: "basic",
-          max_results: maxResults,
-          time_range: timeRangeFromTbs(input.tbs),
-          include_answer: false,
-          include_raw_content: false,
-        };
-        if (domains.length) {
-          payload.include_domains = domains;
-          payload.include_domains_mode = "prefer";
-        }
-        const json = await tavily<Record<string, unknown>>(TAVILY_SEARCH, payload, 35_000);
-        for (const hit of normalizeSearchHits(json, query)) {
-          const key = hit.url.replace(/\/+$/, "").toLowerCase();
-          if (seen.has(key)) continue;
-          seen.add(key);
-          hits.push(hit);
+        for (const window of windows) {
+          const payload: Record<string, unknown> = {
+            query,
+            topic: "news",
+            search_depth: "basic",
+            max_results: maxResults,
+            include_answer: false,
+            include_raw_content: false,
+          };
+          if (window.mode === "window") {
+            payload.start_date = window.start_date;
+            payload.end_date = window.end_date;
+          } else {
+            payload.time_range = window.time_range;
+          }
+          if (domains.length) {
+            payload.include_domains = domains;
+            payload.include_domains_mode = "prefer";
+          }
+          const json = await tavily<Record<string, unknown>>(TAVILY_SEARCH, payload, 35_000);
+          for (const hit of normalizeSearchHits(json, query)) {
+            const key = hit.url.replace(/\/+$/, "").toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            hits.push(hit);
+          }
         }
       }
       return hits;

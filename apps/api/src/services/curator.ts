@@ -2,7 +2,7 @@ import { CAPS, type ContextPack } from "@aicouncil/schema";
 import type { SqlClient } from "../db/types.js";
 import { llmError } from "../lib/errors.js";
 import { newId } from "../lib/hash.js";
-import { manilaDate, manilaToday } from "../lib/manila.js";
+import { manilaDate, manilaToday, parseYmdUtc } from "../lib/manila.js";
 import {
   DEFAULT_NEWS_QUERIES,
   hostnameOf,
@@ -16,7 +16,6 @@ import {
   isNewsDisposition,
   isNewsTopic,
   judgeNewsHitBatches,
-  judgeNewsHits,
   NEWS_TAGS,
   selectSocialStories,
   socialPostCopy,
@@ -108,6 +107,20 @@ function parseJson<T>(value: unknown, fallback: T): T {
   return (value as T) ?? fallback;
 }
 
+/** Prefer the article's published day so a 14-day backfill spreads across the calendar. */
+export function storySeenAt(date: string | undefined, scannedAt: string): string {
+  if (!date) return scannedAt;
+  const trimmed = date.trim();
+  const ymd = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (ymd?.[1]) {
+    const parsed = parseYmdUtc(ymd[1]);
+    if (parsed) return parsed.toISOString();
+  }
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  return scannedAt;
+}
+
 export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesafe?: TypeSafePort) {
   const judge = typesafe ?? createTypeSafePort({});
   return {
@@ -115,13 +128,14 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
       queries?: string[];
       limit?: number;
       tbs?: string;
+      days?: number;
       include_domains?: string[];
       enrich?: boolean;
     }) {
       assertHourly(scanHits, CAPS.curatorScansPerHour, "scan", "curator_scan_rate_limited");
       const queries = input.queries?.length ? input.queries : DEFAULT_NEWS_QUERIES;
       const limit = input.limit ?? 8;
-      const tbs = input.tbs ?? "qdr:d";
+      const tbs = input.tbs ?? (input.days ? `qdr:d${input.days}` : "qdr:d");
       const includeDomains = input.include_domains;
       const today = manilaToday();
       let hits: NewsHit[] = [];
@@ -133,7 +147,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
         throw err;
       }
 
-      const ranked = await judgeNewsHits(judge, hits);
+      const ranked = await judgeNewsHitBatches(judge, hits);
       let enriched: ScrapedPage[] = [];
       if (input.enrich) {
         const preferred = ranked.hits.filter((h) => h.judgment?.recommend || h.desk?.notable);
@@ -153,6 +167,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
         timezone: "Asia/Manila",
         today,
         queries,
+        tbs,
         hits: ranked.hits,
         enriched,
         candidates: candidates.map((h) => ({
@@ -174,6 +189,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
           topic: h.desk?.topic,
           tags: h.desk?.tags,
           clip: h.desk?.clip,
+          headline: h.desk?.clip,
           body: socialPostCopy(h),
           social: h.desk?.social ?? true,
           social_score: h.desk?.social_score ?? null,
@@ -252,7 +268,7 @@ export function curatorService(sql: SqlClient, firecrawl: FirecrawlPort, typesaf
             source: hit.source,
             query: hit.query,
             date: hit.date,
-            seen_at: String(row.queried_at),
+            seen_at: storySeenAt(hit.date, String(row.queried_at)),
             judgment: hit.judgment,
             desk: hit.desk,
           });

@@ -42,6 +42,17 @@ export function parseYmdUtc(ymd: string): Date | null {
   return new Date(Date.UTC(y, m - 1, d));
 }
 
+/** Shift a YYYY-MM-DD civil date by whole days (UTC calendar, no TZ drift). */
+export function addDaysYmd(ymd: string, days: number): string {
+  const parsed = parseYmdUtc(ymd);
+  if (!parsed) return ymd;
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  const y = parsed.getUTCFullYear();
+  const m = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(parsed.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 /**
  * Homepage / tracker heading for a Manila agenda day.
  * Today is labeled; other days use the weekday. `aside` is the ISO date.

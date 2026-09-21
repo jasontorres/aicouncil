@@ -4,7 +4,7 @@ import { migrate } from "../src/db/migrate.js";
 import { createApp, type Documents } from "../src/app.js";
 import { MemoryDedupe } from "../src/ports/dedupe.js";
 import { createFirecrawlPort } from "../src/ports/firecrawl.js";
-import { createTavilyPort, timeRangeFromTbs } from "../src/ports/tavily.js";
+import { createTavilyPort, lookbackWindows, newsLookback, timeRangeFromTbs } from "../src/ports/tavily.js";
 import type { SqlClient } from "../src/db/types.js";
 
 const docs: Documents = {
@@ -131,6 +131,25 @@ describe("timeRangeFromTbs", () => {
     expect(timeRangeFromTbs("qdr:m")).toBe("month");
     expect(timeRangeFromTbs("qdr:y")).toBe("year");
   });
+
+  test("qdr:d14 is a 14-day start/end window, not time_range week", () => {
+    expect(newsLookback("qdr:d14", "2026-09-21")).toEqual({
+      mode: "window",
+      days: 14,
+      start_date: "2026-09-08",
+      end_date: "2026-09-21",
+    });
+    expect(newsLookback("14d", "2026-09-21").mode).toBe("window");
+    expect(newsLookback("qdr:d", "2026-09-21")).toEqual({ mode: "range", time_range: "day" });
+  });
+
+  test("14-day lookback splits into two 7-day Tavily windows", () => {
+    const windows = lookbackWindows(newsLookback("qdr:d14", "2026-09-21"));
+    expect(windows).toEqual([
+      { mode: "window", days: 7, start_date: "2026-09-15", end_date: "2026-09-21" },
+      { mode: "window", days: 7, start_date: "2026-09-08", end_date: "2026-09-14" },
+    ]);
+  });
 });
 
 describe("Tavily-default news", () => {
@@ -175,6 +194,34 @@ describe("Tavily-default news", () => {
     const health = await jsonOf(await app.request("/healthz"));
     expect(health.tavily).toBe(true);
     expect(health.firecrawl).toBe(true);
+    await sql.close();
+  });
+
+  test("days: 14 sends Tavily start_date/end_date instead of time_range", async () => {
+    const capture: Record<string, unknown>[] = [];
+    const { sql, app } = await makeApp({
+      tavily: createTavilyPort({ apiKey: "tvly-test-not-real", fetchImpl: mockTavily({ capture }) }),
+      firecrawl: createFirecrawlPort({ apiKey: "fc-test-not-real", fetchImpl: mockFirecrawl() }),
+    });
+    const scan = await app.request("/v1/curator/scan", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${CURATOR}` },
+      body: JSON.stringify({ queries: ["Philippines news"], limit: 8, days: 14 }),
+    });
+    expect(scan.status).toBe(200);
+    const body = await jsonOf(scan);
+    expect(body.tbs).toBe("qdr:d14");
+    const searchCalls = capture.filter((row) => String(row.url).includes("/search"));
+    expect(searchCalls.length).toBe(2);
+    const windows = searchCalls.map((row) => row.body as Record<string, unknown>);
+    for (const payload of windows) {
+      expect(payload.time_range).toBeUndefined();
+      expect(payload.start_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(payload.end_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(String(payload.start_date) < String(payload.end_date)).toBe(true);
+    }
+    const starts = windows.map((row) => String(row.start_date)).sort();
+    expect(starts[0]).not.toBe(starts[1]);
     await sql.close();
   });
 

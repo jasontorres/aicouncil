@@ -560,14 +560,14 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
         title: "Social posts",
         robots: "noindex",
         path: "/socials",
-        description: "Jev-selected social posts from saved headlines. Verbatim clip plus URL. Not Issues. Not a vote.",
+        description: "Jev-selected social posts from saved headlines. Verbatim headline plus URL. Not Issues. Not a vote.",
         body: html`
           <p class="crumb">THE AI COUNCIL OF THE PHILIPPINES / <a href="/news">news</a> / socials</p>
           <div class="record-head">
             <div class="kicker"><span class="tag-on">Unlisted</span> <span>Asia/Manila ${wire.today}</span></div>
             <h1>Social posts</h1>
             <p class="desc">
-              Headlines Jev marked as social-media posts. The line is a verbatim clip from the story. Copy the post, then paste it. Not Issues. Not a vote.
+              Headlines Jev picked from the title, a title hook, or the snippet lead. Code copies that line. It does not write a new caption. Copy the post, then paste it. Not Issues. Not a vote.
             </p>
           </div>
           <nav class="wire-tabs" aria-label="Desk">
@@ -586,6 +586,7 @@ prior_art_verification: ${p.prior_art_verification_status}</pre>
                     const href = httpUrl(story.url);
                     const body = socialPostCopy(story);
                     const card = html`<article class="social-card">
+                      <p class="kicker">Headline</p>
                       <p class="social-line">${story.desk?.clip || story.title}</p>
                       ${href
                         ? html`<a class="social-url" href="${href}" rel="noopener noreferrer">${story.url}</a>`

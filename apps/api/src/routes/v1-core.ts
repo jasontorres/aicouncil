@@ -100,6 +100,7 @@ export function v1Router() {
         social: story.desk?.social ?? story.desk?.notable ?? false,
         social_score: story.desk?.social_score ?? null,
         clip: story.desk?.clip || story.title,
+        headline: story.desk?.clip || story.title,
         notability: story.desk?.notability ?? null,
         council: story.judgment?.recommend ?? false,
       })),
@@ -134,12 +135,13 @@ export function v1Router() {
         topic: story.desk?.topic ?? null,
         tags: story.desk?.tags ?? [],
         clip: story.desk?.clip || story.title,
+        headline: story.desk?.clip || story.title,
         body: socialPostCopy(story),
         social: true,
         social_score: story.desk?.social_score ?? null,
       })),
       notice:
-        "Jev-selected social posts from saved headlines. The body is a verbatim clip plus the source URL. Not Issues. Not a vote.",
+        "Jev-selected social posts from saved headlines. The body is a verbatim headline plus the source URL. Not Issues. Not a vote.",
     });
   });
 

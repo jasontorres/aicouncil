@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { formatAgendaHeading, groupByAgendaDate } from "../src/lib/manila.js";
+import { addDaysYmd, formatAgendaHeading, groupByAgendaDate } from "../src/lib/manila.js";
 
 describe("agenda date grouping", () => {
   test("groups newest date first and parks undated last", () => {
@@ -35,5 +35,10 @@ describe("agenda date grouping", () => {
     });
     expect(formatAgendaHeading("2026-08-24", "2026-08-28").label).toBe("Monday");
     expect(formatAgendaHeading(null, "2026-08-28")).toEqual({ label: "Open", aside: "" });
+  });
+
+  test("addDaysYmd shifts a civil date without timezone drift", () => {
+    expect(addDaysYmd("2026-09-21", -13)).toBe("2026-09-08");
+    expect(addDaysYmd("2026-09-08", 13)).toBe("2026-09-21");
   });
 });
